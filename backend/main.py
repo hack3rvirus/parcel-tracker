@@ -1,5 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from passlib.context import CryptContext
 import jwt
@@ -17,7 +20,33 @@ cred = credentials.Certificate(os.getenv('FIREBASE_SERVICE_ACCOUNT_PATH'))
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
-app = FastAPI()
+app = FastAPI(title="Delivery Website API", version="1.0.0")
+
+# CORS middleware for frontend communication
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure this properly in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Serve static files from React build
+app.mount("/static", StaticFiles(directory="frontend/dist"), name="static")
+
+# Serve favicon
+@app.get("/favicon.ico")
+async def favicon():
+    return FileResponse("frontend/dist/favicon.ico")
+
+# Serve index.html for all other routes (SPA support)
+@app.get("/{full_path:path}")
+async def serve_react_app(full_path: str):
+    # Skip API routes
+    if full_path.startswith("api/") or full_path in ["docs", "redoc", "openapi.json"]:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return FileResponse("frontend/dist/index.html")
+
 security = HTTPBearer()
 JWT_SECRET = os.getenv('JWT_SECRET')
 
