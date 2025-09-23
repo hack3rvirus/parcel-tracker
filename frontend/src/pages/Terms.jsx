@@ -49,8 +49,8 @@ export default function Terms() {
         </CardHeader>
         <CardContent className="space-y-3 text-muted-foreground">
           <p>
-            By accessing or using Rush Delivery (the “Service”), you agree to be bound by these Terms of Service (the
-            “Terms”). If you do not agree, you may not access or use the Service.
+            By accessing or using Rush Delivery (the "Service"), you agree to be bound by these Terms of Service (the
+            "Terms"). If you do not agree, you may not access or use the Service.
           </p>
         </CardContent>
       </Card>
@@ -61,9 +61,8 @@ export default function Terms() {
         </CardHeader>
         <CardContent className="space-y-3 text-muted-foreground">
           <p>
-            Rush Delivery provides real-time parcel tracking, delivery management tools, and related features via a web
-            application and installable PWA. Features include live map tracking, notifications, and an admin dashboard
-            for parcel updates.
+            Rush Delivery provides international shipping and delivery services, real-time parcel tracking, and related features via a web
+            application. Features include live tracking, notifications, and delivery management tools.
           </p>
         </CardContent>
       </Card>
@@ -76,7 +75,7 @@ export default function Terms() {
           <ul className="list-disc pl-6 space-y-2">
             <li>You are responsible for maintaining the confidentiality of your login credentials.</li>
             <li>You agree to provide accurate information and promptly update it as necessary.</li>
-            <li>Admins have additional privileges and must use them responsibly.</li>
+            <li>Users must use the service responsibly and in compliance with all applicable laws.</li>
           </ul>
         </CardContent>
       </Card>
@@ -90,6 +89,7 @@ export default function Terms() {
             <li>Do not misuse, disrupt, or attempt to gain unauthorized access to the Service.</li>
             <li>Do not upload, transmit, or store illegal or harmful content.</li>
             <li>Use tracking data only for lawful purposes and in compliance with privacy laws.</li>
+            <li>Do not use the service for any prohibited activities including illegal shipments.</li>
           </ul>
         </CardContent>
       </Card>
@@ -101,7 +101,8 @@ export default function Terms() {
         <CardContent className="space-y-3 text-muted-foreground">
           <p>
             While we strive for accuracy, parcel data may be subject to delays, network conditions, or third-party
-            provider limitations. The Service is provided “as is” without warranties of accuracy or availability.
+            provider limitations. The Service is provided "as is" without warranties of accuracy or availability.
+            International shipping times may vary based on customs and local regulations.
           </p>
         </CardContent>
       </Card>
@@ -124,8 +125,8 @@ export default function Terms() {
         </CardHeader>
         <CardContent className="space-y-3 text-muted-foreground">
           <p>
-            The Service may integrate with third-party services (e.g., Firebase, mapping providers). Your use of those
-            services is subject to their respective terms and policies.
+            The Service may integrate with third-party services (e.g., mapping providers, payment processors). Your use of those
+            services is subject to their respective terms and policies. International shipments may involve customs and duties.
           </p>
         </CardContent>
       </Card>
@@ -138,7 +139,7 @@ export default function Terms() {
           <p>
             To the maximum extent permitted by law, Rush Delivery shall not be liable for any indirect, incidental,
             special, consequential, or punitive damages, including loss of profits, data, or goodwill, resulting from
-            your use of the Service.
+            your use of the Service. This includes delays in international shipping and customs-related issues.
           </p>
         </CardContent>
       </Card>
@@ -163,7 +164,7 @@ export default function Terms() {
         <CardContent className="space-y-3 text-muted-foreground">
           <p>
             We may suspend or terminate access to the Service immediately, without prior notice or liability, for any
-            reason, including breach of these Terms.
+            reason, including breach of these Terms or violation of shipping regulations.
           </p>
         </CardContent>
       </Card>
@@ -174,8 +175,8 @@ export default function Terms() {
         </CardHeader>
         <CardContent className="space-y-3 text-muted-foreground">
           <p>
-            These Terms shall be governed by and construed in accordance with the laws of the applicable jurisdiction,
-            without regard to its conflict of law provisions.
+            These Terms shall be governed by and construed in accordance with the laws of the United States,
+            without regard to its conflict of law provisions. International shipments are subject to local laws and regulations.
           </p>
         </CardContent>
       </Card>
@@ -198,8 +199,8 @@ export default function Terms() {
         </CardHeader>
         <CardContent className="space-y-2 text-muted-foreground">
           <p>Email: support@rushdelivery.com</p>
-          <p>Phone: +1 (800) RUSH-NOW</p>
-          <p>Address: 123 Delivery Street, Logistics City, LC 12345</p>
+          <p>Phone: +1-678-842-3655</p>
+          <p>Address: 5955 Eden Drive, Haltom City, TX 76112, United States</p>
         </CardContent>
       </Card>
 

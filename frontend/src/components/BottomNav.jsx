@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Search, User, Bell } from 'lucide-react';
+import { Home, Search, User, Phone, Calendar } from 'lucide-react';
 import { useMediaQuery } from 'react-responsive';
 
 export default function BottomNav() {
@@ -10,25 +10,27 @@ export default function BottomNav() {
   const navItems = [
     { path: '/', icon: Home, label: 'Home' },
     { path: '/tracking', icon: Search, label: 'Track' },
-    { path: '/profile', icon: User, label: 'Profile' },
-    { path: '/contact', icon: Bell, label: 'Contact' },
+    { path: '/schedule', icon: Calendar, label: 'Schedule' },
+    { path: '/contact', icon: Phone, label: 'Contact' },
   ];
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 border-t shadow-sm z-[80] animate-fade-in"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)', backgroundColor: 'hsl(var(--card))', borderTopColor: 'hsl(var(--border))', borderTopWidth: 1 }}
+      className="fixed bottom-0 left-0 right-0 border-t shadow-lg z-[80] animate-fade-in bg-white/95 backdrop-blur-sm"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="Bottom navigation"
     >
       <div className="flex justify-around items-center h-16">
         {navItems.map((item) => (
-          <NavLink 
+          <NavLink
             key={item.path}
-            to={item.path} 
-            className={({ isActive }) => 
-              `flex flex-col items-center justify-center flex-1 py-2 transition-colors ${
-                isActive ? 'text-primary' : 'text-foreground/70'
-              } hover:text-primary`
+            to={item.path}
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center flex-1 py-2 px-1 transition-all duration-200 ${
+                isActive
+                  ? 'text-primary bg-primary/10'
+                  : 'text-gray-600 hover:text-primary hover:bg-gray-50'
+              }`
             }
           >
             <item.icon className="w-5 h-5 mb-1 transition-transform hover:scale-110" />

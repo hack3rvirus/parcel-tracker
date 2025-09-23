@@ -1,163 +1,179 @@
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronUp, HelpCircle, Mail, Phone, MessageCircle } from 'lucide-react';
 
 export default function FAQ() {
+  const [openFAQ, setOpenFAQ] = useState(null);
+
+  const faqs = [
+    {
+      category: "Shipping Services",
+      questions: [
+        {
+          question: "What types of packages can I ship with Rush Delivery?",
+          answer: "We handle a wide variety of packages including documents, electronics, clothing, medical supplies, automotive parts, and more. Our services accommodate packages from small envelopes to large freight shipments up to 150 lbs."
+        },
+        {
+          question: "How do I schedule a pickup?",
+          answer: "You can schedule a pickup through our website by filling out the pickup request form, calling our customer service at +1-678-842-3655, or emailing us at support@rushdelivery.com. We'll contact you within 24 hours to confirm details."
+        },
+        {
+          question: "What are your delivery timeframes?",
+          answer: "We offer several service levels: Standard (3-5 days), Express (1-2 days), Urgent (same day), and International (5-10 days depending on destination). Delivery times may vary based on package size, destination, and service level selected."
+        },
+        {
+          question: "Do you offer international shipping?",
+          answer: "Yes! We ship to over 50 countries worldwide. International shipping includes customs clearance assistance, international tracking, and multi-currency support. Contact us for specific country requirements and restrictions."
+        }
+      ]
+    },
+    {
+      category: "Tracking & Insurance",
+      questions: [
+        {
+          question: "How does package tracking work?",
+          answer: "Every package receives a unique tracking ID. You can track your package in real-time through our website, mobile app, or by calling customer service. Our advanced GPS tracking system provides updates at every stage of the delivery process."
+        },
+        {
+          question: "What happens if my package is lost or damaged?",
+          answer: "All packages are automatically insured up to $100. Additional insurance coverage is available for valuable items. If your package is lost or damaged, contact us immediately at +1-678-842-3655 to file a claim. We'll work with you to resolve the issue quickly."
+        },
+        {
+          question: "Can I change the delivery address after pickup?",
+          answer: "Yes, you can request delivery address changes up to 24 hours before the scheduled delivery time. Contact our customer service team with your tracking ID and the new delivery information. Additional fees may apply for address changes."
+        }
+      ]
+    },
+    {
+      category: "Pricing & Payment",
+      questions: [
+        {
+          question: "How are shipping rates calculated?",
+          answer: "Shipping rates are calculated based on package weight, dimensions, destination, service level, and any additional services required. You can get an instant quote through our website or by contacting our sales team."
+        },
+        {
+          question: "What payment methods do you accept?",
+          answer: "We accept all major credit cards (Visa, MasterCard, American Express), PayPal, bank transfers, and corporate accounts. Payment is typically collected at the time of pickup or delivery, depending on your account preferences."
+        },
+        {
+          question: "Are there any additional fees?",
+          answer: "Additional fees may apply for fuel surcharges, residential delivery, special handling, insurance above the standard $100 coverage, or address changes. All fees are clearly disclosed before you confirm your shipment."
+        }
+      ]
+    },
+    {
+      category: "Business Services",
+      questions: [
+        {
+          question: "Do you offer business accounts?",
+          answer: "Yes! We offer corporate accounts with volume discounts, dedicated account managers, monthly billing, and customized reporting. Contact our business development team to discuss your specific needs."
+        },
+        {
+          question: "Can I schedule recurring pickups?",
+          answer: "Absolutely! We offer scheduled pickup services for businesses with regular shipping needs. You can set up daily, weekly, or custom pickup schedules to streamline your logistics operations."
+        },
+        {
+          question: "Do you provide API integration?",
+          answer: "Yes, we offer API integration for businesses that want to automate their shipping processes. Our API allows you to create shipments, track packages, generate labels, and access reporting data programmatically."
+        }
+      ]
+    }
+  ];
+
+  const toggleFAQ = (index) => {
+    setOpenFAQ(openFAQ === index ? null : index);
+  };
+
   return (
-    <div className="pt-20 p-4 max-w-3xl mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold">Frequently Asked Questions</h1>
-        <p className="text-muted-foreground mt-2">Answers to common questions about tracking, notifications, accounts, maps, and more. See the <a href="/guide/user" className="underline">User Guide</a> for step‑by‑step walkthroughs.</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Section */}
+      <section className="bg-gradient-to-r from-primary to-blue-700 text-white py-16 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{backgroundImage: 'url("https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80")'}}></div>
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Frequently Asked Questions</h1>
+          <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
+            Find answers to common questions about our shipping services, tracking, pricing, and more.
+          </p>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          {/* FAQ Categories */}
+          {faqs.map((category, categoryIndex) => (
+            <div key={categoryIndex} className="mb-12">
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                <HelpCircle className="w-8 h-8 text-primary" />
+                {category.category}
+              </h2>
+              <div className="space-y-4">
+                {category.questions.map((faq, faqIndex) => {
+                  const globalIndex = `${categoryIndex}-${faqIndex}`;
+                  return (
+                    <Card key={faqIndex} className="shadow-lg hover:shadow-xl transition-shadow">
+                      <CardHeader className="pb-4">
+                        <CardTitle
+                          className="text-lg cursor-pointer flex items-center justify-between hover:text-primary transition-colors"
+                          onClick={() => toggleFAQ(globalIndex)}
+                        >
+                          <span>{faq.question}</span>
+                          {openFAQ === globalIndex ? (
+                            <ChevronUp className="w-5 h-5 text-primary" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      {openFAQ === globalIndex && (
+                        <CardContent className="pt-0">
+                          <p className="text-gray-600 leading-relaxed">{faq.answer}</p>
+                        </CardContent>
+                      )}
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Still Need Help Section */}
+          <Card className="bg-gradient-to-r from-primary to-blue-600 text-white shadow-xl">
+            <CardContent className="p-8 text-center">
+              <h3 className="text-2xl font-bold mb-4">Still Need Help?</h3>
+              <p className="text-lg mb-6 opacity-90">
+                Can't find the answer you're looking for? Our customer service team is here to help.
+              </p>
+              <div className="grid md:grid-cols-3 gap-4">
+                <div className="flex flex-col items-center">
+                  <Phone className="w-8 h-8 mb-3" />
+                  <h4 className="font-semibold mb-2">Call Us</h4>
+                  <p className="text-sm opacity-90">+1-678-842-3655</p>
+                  <p className="text-xs opacity-75">Mon-Fri 8AM-6PM EST</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <Mail className="w-8 h-8 mb-3" />
+                  <h4 className="font-semibold mb-2">Email Us</h4>
+                  <p className="text-sm opacity-90">support@rushdelivery.com</p>
+                  <p className="text-xs opacity-75">24/7 Response</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <MessageCircle className="w-8 h-8 mb-3" />
+                  <h4 className="font-semibold mb-2">Live Chat</h4>
+                  <p className="text-sm opacity-90">Available 24/7</p>
+                  <p className="text-xs opacity-75">Average response: 2 min</p>
+                </div>
+              </div>
+              <div className="mt-6">
+                <Button variant="secondary" size="lg" className="bg-white text-primary hover:bg-gray-100">
+                  Start Live Chat
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>General</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="q1">
-              <AccordionTrigger>How do I track my parcel?</AccordionTrigger>
-              <AccordionContent>
-                Enter your tracking ID in the search bar on the Home or Tracking page and press Track. You will see real-time status, ETA, timeline, and a live map.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="q2">
-              <AccordionTrigger>Do I need an account to track?</AccordionTrigger>
-              <AccordionContent>
-                You can search a tracking ID without an account. Some advanced features like notifications may require login.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="q3">
-              <AccordionTrigger>Why is my parcel not found?</AccordionTrigger>
-              <AccordionContent>
-                Double-check the tracking ID for typos. If you still cannot find it, the parcel may not be registered yet or has been archived. Contact support with your details.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Shipping & Delivery</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="s1">
-              <AccordionTrigger>What does each status mean?</AccordionTrigger>
-              <AccordionContent>
-                <ul className="list-disc pl-6">
-                  <li><strong>Pending</strong> – label created, awaiting pickup</li>
-                  <li><strong>Processing</strong> – parcel received, being sorted</li>
-                  <li><strong>In Transit</strong> – on the way to destination</li>
-                  <li><strong>Out for Delivery</strong> – on the final leg to recipient</li>
-                  <li><strong>Delivered</strong> – successfully delivered</li>
-                </ul>
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="s2">
-              <AccordionTrigger>Can I change my delivery address?</AccordionTrigger>
-              <AccordionContent>
-                Contact support as soon as possible. We’ll attempt the update if the parcel hasn’t reached the final stage. Use the <a href="/contact" className="underline">Contact</a> page.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Notifications</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="q4">
-              <AccordionTrigger>How do I enable notifications?</AccordionTrigger>
-              <AccordionContent>
-                On the Tracking page, toggle Email notifications. SMS and push notifications may be added and can be enabled from the same section when available.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="q5">
-              <AccordionTrigger>Why am I not receiving emails?</AccordionTrigger>
-              <AccordionContent>
-                Check your spam folder. Ensure your email settings and preferences are correct. If the issue persists, contact support.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Maps & ETA</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="m1">
-              <AccordionTrigger>How is the ETA calculated?</AccordionTrigger>
-              <AccordionContent>
-                ETA is derived from distance to destination and average speed assumptions along with historical updates when available. It’s an estimate and may shift with new data.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="m2">
-              <AccordionTrigger>Why is the map location not available?</AccordionTrigger>
-              <AccordionContent>
-                The courier may not have provided coordinates yet. We’ll show the latest known information and update the map as soon as data is available.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Accounts & Security</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="q6">
-              <AccordionTrigger>How do I create an account?</AccordionTrigger>
-              <AccordionContent>
-                Go to the Login page and switch to Register. Enter your email and a secure password to create an account.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="q7">
-              <AccordionTrigger>How do I reset my password?</AccordionTrigger>
-              <AccordionContent>
-                From the Profile page, use the Security tab to update your password. Support for password reset via email may be provided.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="q8">
-              <AccordionTrigger>Is my data secure?</AccordionTrigger>
-              <AccordionContent>
-                We use industry-standard measures including encryption in transit and hashed passwords. See our Privacy Policy for details.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Billing & Support</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            <AccordionItem value="b1">
-              <AccordionTrigger>How do I contact support?</AccordionTrigger>
-              <AccordionContent>
-                Use the <a href="/contact" className="underline">Contact</a> page to submit a request. Include your tracking ID for fastest assistance.
-              </AccordionContent>
-            </AccordionItem>
-            <AccordionItem value="b2">
-              <AccordionTrigger>Do you offer premium notifications?</AccordionTrigger>
-              <AccordionContent>
-                We plan to offer premium notification tiers (e.g., SMS urgency, extended history). Follow the newsletter on the Home page for updates.
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        </CardContent>
-      </Card>
     </div>
   );
 }

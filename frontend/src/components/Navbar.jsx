@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Search, Package, User, Menu, X, Bell, LogOut, Sun, Moon, Laptop } from 'lucide-react';
+import { Search, Package, User, Menu, X, Bell, LogOut, Sun, Moon, Laptop, Settings, Shield } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useMediaQuery } from 'react-responsive';
-import { auth } from '@/firebase';
-import { signOut } from 'firebase/auth';
 import { useToast } from '@/components/ui/use-toast';
+import axios from 'axios';
+import API_BASE_URL from '@/config/api';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -28,12 +28,18 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
       localStorage.removeItem('token');
-      toast({ title: 'Logged out successfully' });
+      toast({
+        title: 'Logged out successfully',
+        description: 'You have been logged out of your account'
+      });
       navigate('/login');
     } catch (error) {
-      toast({ title: 'Error logging out', description: error.message });
+      toast({
+        title: 'Error logging out',
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -41,12 +47,16 @@ export default function Navbar() {
     { name: 'Home', path: '/' },
     { name: 'Track', path: '/tracking' },
     { name: 'About', path: '/about' },
-    { name: 'Profile', path: '/profile' },
+    { name: 'Contact', path: '/contact' },
+    { name: 'Schedule', path: '/schedule' },
   ];
+
+  // Check if user is logged in
+  const isLoggedIn = !!localStorage.getItem('token');
 
   return (
     <>
-      <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-[90] w-full shadow-sm animate-fade-in" style={{ backgroundColor: 'hsl(var(--card))', borderBottom: '1px solid hsl(var(--border))' }}>
+      <nav aria-label="Main navigation" className="fixed top-0 left-0 right-0 z-50 w-full shadow-sm animate-fade-in" style={{ backgroundColor: 'hsl(var(--card))', borderBottom: '1px solid hsl(var(--border))' }}>
         <div className="container flex h-16 items-center justify-between">
           <NavLink to="/" className="flex items-center gap-2">
             <img src="/logo.png" alt="Rush Delivery" className="h-8 w-8" />
@@ -87,24 +97,19 @@ export default function Navbar() {
           </form>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Toggle theme"
-              aria-pressed={theme !== 'system'}
-              onClick={() => setTheme(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light')}
-              title={`Theme: ${theme}`}
-              className="btn-hover"
-            >
-              {theme === 'system' ? <Laptop className="h-5 w-5" /> : resolved === 'dark' ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-            </Button>
-            <Button variant="ghost" size="icon" className="relative btn-hover" aria-label="Notifications">
-              <Bell className="h-5 w-5" />
-              <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logout" className="btn-hover">
-              <LogOut className="h-5 w-5" />
-            </Button>
+            {isLoggedIn && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="btn-hover"
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
+            )}
+
+            {/* Theme toggle moved to hamburger menu for cleaner look */}
             {isTablet && (
               <Button
                 variant="ghost"
@@ -135,6 +140,47 @@ export default function Navbar() {
                   {item.name}
                 </NavLink>
               ))}
+
+              {/* Mobile Search */}
+              <form onSubmit={handleSearch} className="flex items-center space-x-2 p-3">
+                <Input
+                  type="text"
+                  placeholder="Enter Tracking ID"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1"
+                />
+                <Button type="submit" size="sm" className="btn-hover">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </form>
+
+              <div className="border-t pt-4 mt-4 space-y-2">
+                {isLoggedIn && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="w-full justify-start"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Logout
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                  className="w-full justify-start"
+                >
+                  {resolved === 'dark' ? <Sun className="h-4 w-4 mr-2" /> : <Moon className="h-4 w-4 mr-2" />}
+                  {resolved === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

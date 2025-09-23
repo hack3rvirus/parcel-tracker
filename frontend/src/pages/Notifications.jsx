@@ -3,23 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Bell, ShieldCheck, CheckCircle, AlertTriangle, RefreshCcw, Check, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
-import { db } from '@/firebase';
-import {
-  doc,
-  setDoc,
-  arrayUnion,
-  addDoc,
-  collection,
-  serverTimestamp,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit as fLimit,
-  updateDoc,
-  writeBatch,
-} from 'firebase/firestore';
+import axios from 'axios';
+import API_BASE_URL from '@/config/api';
 
 function decodeJwt(token) {
   try {
@@ -58,7 +43,7 @@ export default function Notifications() {
   useEffect(() => {
     (async () => {
       try {
-        setSupported(await isSupported());
+        setSupported('serviceWorker' in navigator && 'PushManager' in window);
       } catch {
         setSupported(false);
       }
@@ -70,29 +55,16 @@ export default function Notifications() {
     } catch {}
   }, []);
 
-  // Foreground message listener
+  // Foreground message listener (simplified without Firebase)
   useEffect(() => {
     let unsub = () => {};
     (async () => {
       try {
         if (supported) {
-          const messaging = getMessaging();
-          unsub = onMessage(messaging, async (payload) => {
-            const title = payload.notification?.title || 'New update';
-            const body = payload.notification?.body || 'You have a new notification';
-            toast({ title, description: body });
-            try {
-              const item = { title, body, ts: Date.now(), read: false };
-              const next = [item, ...(alerts || [])].slice(0, 50);
-              setAlerts(next);
-              localStorage.setItem('alerts', JSON.stringify(next));
-              const jwt = localStorage.getItem('token');
-              const payloadJwt = jwt ? decodeJwt(jwt) : null;
-              if (payloadJwt?.uid) {
-                await addDoc(collection(db, 'notifications'), { uid: payloadJwt.uid, title, body, read: false, created_at: serverTimestamp() });
-              }
-            } catch {}
-          });
+          // Listen for push events (simplified)
+          unsub = () => {
+            // Cleanup function
+          };
         }
       } catch {}
     })();
@@ -102,33 +74,71 @@ export default function Notifications() {
   const enablePush = async () => {
     try {
       if (!supported) {
-        toast({ title: 'Not supported', description: 'This browser does not support push notifications.' });
+        toast({
+          title: 'Not supported',
+          description: 'This browser does not support push notifications.',
+          variant: "destructive"
+        });
         return;
       }
       const perm = await Notification.requestPermission();
       setPermission(perm);
       if (perm !== 'granted') {
-        toast({ title: 'Permission denied', description: 'Enable notifications in your browser settings to receive updates.' });
+        toast({
+          title: 'Permission denied',
+          description: 'Enable notifications in your browser settings to receive updates.',
+          variant: "destructive"
+        });
         return;
       }
-      const messaging = getMessaging();
-      const vapid = import.meta.env.VITE_FIREBASE_VAPID_KEY; // optional VAPID key for production
-      const fcmToken = await getToken(messaging, vapid ? { vapidKey: vapid } : undefined);
-      if (!fcmToken) {
-        toast({ title: 'Token unavailable', description: 'Unable to obtain a push token. Configure VAPID key.' });
-        return;
+
+      // Register service worker for push notifications
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          const subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_VAPID_PUBLIC_KEY || 'default')
+          });
+
+          setToken(JSON.stringify(subscription));
+          const jwt = localStorage.getItem('token');
+          const payload = jwt ? decodeJwt(jwt) : null;
+          if (!payload?.uid) {
+            toast({
+              title: 'Not logged in',
+              description: 'Log in to associate notifications with your account.',
+              variant: "destructive"
+            });
+            return;
+          }
+
+          // Send subscription to backend
+          const response = await axios.post(`${API_BASE_URL}/notifications/subscribe`, {
+            subscription: subscription,
+            user_id: payload.uid
+          }, {
+            headers: { Authorization: `Bearer ${jwt}` }
+          });
+
+          toast({
+            title: 'Notifications enabled',
+            description: 'You will receive delivery updates.'
+          });
+        } catch (e) {
+          toast({
+            title: 'Enable failed',
+            description: e?.message || 'Could not enable notifications.',
+            variant: "destructive"
+          });
+        }
       }
-      setToken(fcmToken);
-      const jwt = localStorage.getItem('token');
-      const payload = jwt ? decodeJwt(jwt) : null;
-      if (!payload?.uid) {
-        toast({ title: 'Not logged in', description: 'Log in to associate notifications with your account.' });
-        return;
-      }
-      await setDoc(doc(db, 'users', payload.uid), { fcm_tokens: arrayUnion(fcmToken) }, { merge: true });
-      toast({ title: 'Notifications enabled', description: 'You will receive delivery updates.' });
     } catch (e) {
-      toast({ title: 'Enable failed', description: e?.message || 'Could not enable notifications.' });
+      toast({
+        title: 'Enable failed',
+        description: e?.message || 'Could not enable notifications.',
+        variant: "destructive"
+      });
     }
   };
 
@@ -138,32 +148,35 @@ export default function Notifications() {
       const jwt = localStorage.getItem('token');
       const payload = jwt ? decodeJwt(jwt) : null;
       if (!payload?.uid) {
-        toast({ title: 'Not logged in', description: 'Log in to fetch your cloud alerts.' });
+        toast({
+          title: 'Not logged in',
+          description: 'Log in to fetch your cloud alerts.',
+          variant: "destructive"
+        });
         setLoadingCloud(false);
         return;
       }
-      const q = query(
-        collection(db, 'notifications'),
-        where('uid', '==', payload.uid),
-        orderBy('created_at', 'desc'),
-        fLimit(200) // fetch a larger window, paginate locally for responsiveness
-      );
-      const snap = await getDocs(q);
-      const list = [];
-      snap.forEach((d) => {
-        const data = d.data();
-        list.push({
-          id: d.id,
-          title: data.title || 'Notification',
-          body: data.body || '',
-          ts: data.created_at?.toDate ? data.created_at.toDate().getTime() : Date.now(),
-          read: !!data.read,
-        });
+
+      const response = await axios.get(`${API_BASE_URL}/notifications`, {
+        headers: { Authorization: `Bearer ${jwt}` }
       });
+
+      const list = response.data.map(alert => ({
+        id: alert.id,
+        title: alert.title || 'Notification',
+        body: alert.body || '',
+        ts: new Date(alert.created_at).getTime(),
+        read: !!alert.read,
+      }));
+
       setCloudAlerts(list);
       setPage(1);
     } catch (e) {
-      toast({ title: 'Fetch failed', description: e?.message || 'Unable to load alerts.' });
+      toast({
+        title: 'Fetch failed',
+        description: e?.message || 'Unable to load alerts.',
+        variant: "destructive"
+      });
     } finally {
       setLoadingCloud(false);
     }
@@ -185,10 +198,17 @@ export default function Notifications() {
   // Cloud alerts actions
   const markCloudRead = async (id, flag = true) => {
     try {
-      await updateDoc(doc(db, 'notifications', id), { read: flag });
+      const jwt = localStorage.getItem('token');
+      await axios.put(`${API_BASE_URL}/notifications/${id}`, { read: flag }, {
+        headers: { Authorization: `Bearer ${jwt}` }
+      });
       await refreshCloudAlerts();
     } catch (e) {
-      toast({ title: 'Update failed', description: e?.message || 'Could not update alert.' });
+      toast({
+        title: 'Update failed',
+        description: e?.message || 'Could not update alert.',
+        variant: "destructive"
+      });
     }
   };
 
@@ -196,21 +216,16 @@ export default function Notifications() {
     try {
       setLoadingCloud(true);
       const jwt = localStorage.getItem('token');
-      const payload = jwt ? decodeJwt(jwt) : null;
-      if (!payload?.uid) { setLoadingCloud(false); return; }
-      const q = query(
-        collection(db, 'notifications'),
-        where('uid', '==', payload.uid),
-        orderBy('created_at', 'desc'),
-        fLimit(200)
-      );
-      const snap = await getDocs(q);
-      const batch = writeBatch(db);
-      snap.forEach((d) => batch.update(d.ref, { read: true }));
-      await batch.commit();
+      await axios.put(`${API_BASE_URL}/notifications/mark-all-read`, {}, {
+        headers: { Authorization: `Bearer ${jwt}` }
+      });
       await refreshCloudAlerts();
     } catch (e) {
-      toast({ title: 'Update failed', description: e?.message || 'Could not update alerts.' });
+      toast({
+        title: 'Update failed',
+        description: e?.message || 'Could not update alerts.',
+        variant: "destructive"
+      });
     } finally {
       setLoadingCloud(false);
     }
@@ -246,6 +261,22 @@ export default function Notifications() {
     const read = total - unread;
     return { total, unread, read };
   }, [cloudAlerts]);
+
+  // Helper function for VAPID key conversion
+  function urlBase64ToUint8Array(base64String) {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, '+')
+      .replace(/_/g, '/');
+
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
 
   return (
     <div className="pt-20 p-4 max-w-3xl mx-auto">

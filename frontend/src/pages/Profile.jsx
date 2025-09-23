@@ -7,9 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Bell, Trash2, Plus } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { auth, db } from '@/firebase';
-import { updatePassword } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import axios from 'axios';
+import API_BASE_URL from '@/config/api';
 
 function decodeJwt(token) {
   try {
@@ -21,12 +20,11 @@ function decodeJwt(token) {
   }
 }
 
-function getUid() {
-  const u = auth.currentUser?.uid;
-  if (u) return u;
-  const t = localStorage.getItem('token');
-  const payload = t ? decodeJwt(t) : null;
-  return payload?.uid || null;
+function getUserInfo() {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+  const payload = decodeJwt(token);
+  return payload;
 }
 
 export default function Profile() {
@@ -50,21 +48,40 @@ export default function Profile() {
   useEffect(() => {
     (async () => {
       try {
-        const uid = getUid();
-        if (!uid) { setLoadingProfile(false); return; }
-        const snap = await getDoc(doc(db, 'users', uid));
-        if (snap.exists()) {
-          const d = snap.data();
-          if (d.name) setName(d.name);
-          if (Array.isArray(d.addresses) && d.addresses.length) setAddresses(d.addresses);
-          if (typeof d.default_address_index === 'number') setDefaultIdx(d.default_address_index);
-          if (d.prefs) setPrefs({ email: true, push: false, sms: false, ...d.prefs });
-          setPushStatus({ permission: (typeof Notification !== 'undefined' ? Notification.permission : 'default'), tokens: Array.isArray(d.fcm_tokens) ? d.fcm_tokens.length : 0 });
-        } else {
-          setPushStatus({ permission: (typeof Notification !== 'undefined' ? Notification.permission : 'default'), tokens: 0 });
+        const userInfo = getUserInfo();
+        if (!userInfo) {
+          setLoadingProfile(false);
+          return;
         }
+
+        // Get user profile from backend
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_BASE_URL}/profile`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const profileData = response.data;
+        if (profileData.name) setName(profileData.name);
+        if (Array.isArray(profileData.addresses) && profileData.addresses.length) {
+          setAddresses(profileData.addresses);
+        }
+        if (typeof profileData.default_address_index === 'number') {
+          setDefaultIdx(profileData.default_address_index);
+        }
+        if (profileData.prefs) {
+          setPrefs({ email: true, push: false, sms: false, ...profileData.prefs });
+        }
+
+        setPushStatus({
+          permission: (typeof Notification !== 'undefined' ? Notification.permission : 'default'),
+          tokens: 0
+        });
       } catch (e) {
-        setPushStatus({ permission: (typeof Notification !== 'undefined' ? Notification.permission : 'default'), tokens: 0 });
+        console.error('Error loading profile:', e);
+        setPushStatus({
+          permission: (typeof Notification !== 'undefined' ? Notification.permission : 'default'),
+          tokens: 0
+        });
       } finally {
         setLoadingProfile(false);
       }
@@ -73,35 +90,95 @@ export default function Profile() {
 
   const handleUpdatePassword = async () => {
     try {
-      if (!password) { toast({ title: 'Error', description: 'Enter a new password' }); return; }
-      await updatePassword(auth.currentUser, password);
+      if (!password) {
+        toast({
+          title: 'Error',
+          description: 'Enter a new password',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_BASE_URL}/profile/password`, { password }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       setPassword('');
-      toast({ title: 'Success', description: 'Password updated' });
+      toast({
+        title: 'Success',
+        description: 'Password updated'
+      });
     } catch (e) {
-      toast({ title: 'Error', description: e.message });
+      toast({
+        title: 'Error',
+        description: e.response?.data?.detail || e.message,
+        variant: "destructive"
+      });
     }
   };
 
   const savePersonal = async () => {
     try {
-      const uid = getUid();
-      if (!uid) { toast({ title: 'Not logged in', description: 'Please log in to save your profile.' }); return; }
+      const userInfo = getUserInfo();
+      if (!userInfo) {
+        toast({
+          title: 'Not logged in',
+          description: 'Please log in to save your profile.',
+          variant: "destructive"
+        });
+        return;
+      }
+
       const cleaned = addresses.filter(a => (a.label?.trim() || a.address?.trim()));
-      await setDoc(doc(db, 'users', uid), { name, addresses: cleaned, default_address_index: defaultIdx }, { merge: true });
-      toast({ title: 'Profile saved', description: 'Personal info updated.' });
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_BASE_URL}/profile`, {
+        name,
+        addresses: cleaned,
+        default_address_index: defaultIdx
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast({
+        title: 'Profile saved',
+        description: 'Personal info updated.'
+      });
     } catch (e) {
-      toast({ title: 'Save failed', description: e.message });
+      toast({
+        title: 'Save failed',
+        description: e.response?.data?.detail || e.message,
+        variant: "destructive"
+      });
     }
   };
 
   const savePrefsImmediate = async (nextPrefs) => {
     try {
-      const uid = getUid();
-      if (!uid) { toast({ title: 'Not logged in', description: 'Log in to save preferences.' }); return; }
-      await setDoc(doc(db, 'users', uid), { prefs: nextPrefs }, { merge: true });
-      toast({ title: 'Preferences updated' });
+      const userInfo = getUserInfo();
+      if (!userInfo) {
+        toast({
+          title: 'Not logged in',
+          description: 'Log in to save preferences.',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      await axios.put(`${API_BASE_URL}/profile/preferences`, { prefs: nextPrefs }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      toast({
+        title: 'Preferences updated'
+      });
     } catch (e) {
-      toast({ title: 'Save failed', description: e.message });
+      toast({
+        title: 'Save failed',
+        description: e.response?.data?.detail || e.message,
+        variant: "destructive"
+      });
     }
   };
 

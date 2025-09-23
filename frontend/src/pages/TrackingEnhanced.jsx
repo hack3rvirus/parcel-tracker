@@ -1,486 +1,403 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import MapWithLiveTracking from '@/components/MapWithLiveTracking';
-import 'leaflet/dist/leaflet.css';
-import axios from 'axios';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { onSnapshot, doc, collection, query, where, setDoc } from 'firebase/firestore';
-import { db } from '@/firebase';
-import { Package, Clock, CheckCircle, Truck, MapPin, Share2, Bell, Navigation } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ErrorBoundary } from 'react-error-boundary';
+import { MapPin, Phone, Mail, Clock, Package, Truck, CheckCircle, ArrowRight, Calendar, User, Weight, Search, Copy, Share2, Download, Map, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import axios from 'axios';
+import API_BASE_URL from '@/config/api';
+import LiveMap from '@/components/LiveMap';
 
-function decodeJwt(token) {
-  try {
-    const payload = token.split('.')[1];
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    return JSON.parse(decodeURIComponent(escape(json)));
-  } catch {
-    return null;
-  }
-}
-
-function MapErrorFallback({ error, resetErrorBoundary }) {
-  return (
-    <div className="h-96 flex items-center justify-center bg-gray-100 rounded-lg border">
-      <div className="text-center p-6">
-        <div className="text-gray-400 mb-3">
-          <MapPin className="w-16 h-16 mx-auto" />
-        </div>
-        <p className="text-gray-500 font-medium">Map unavailable</p>
-        <p className="text-gray-400 text-sm mt-1">Tracking information will display without map visualization</p>
-      </div>
-    </div>
-  );
-}
-
-function TrackingEnhanced() {
-  const [searchParams, setSearchParams] = useSearchParams();
+export default function TrackingEnhanced() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [trackingId, setTrackingId] = useState(searchParams.get('trackingId') || '');
   const [parcel, setParcel] = useState(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-  const [recent, setRecent] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [offlineUsed, setOfflineUsed] = useState(false);
-  const [showMap, setShowMap] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
 
-  const fetchParcel = async () => {
-    if (!trackingId.trim()) return null;
-    const token = localStorage.getItem('token');
-    if (!token) {
-      toast({ title: 'Authentication required', description: 'Please log in to track parcels.' });
-      return null;
-    }
-    const res = await axios.get(`http://127.0.0.1:8000/parcels/${trackingId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return res.data;
-  };
-
-  const { refetch, isLoading } = useQuery({
-    queryKey: ['parcel', trackingId],
-    queryFn: fetchParcel,
-    enabled: !!trackingId.trim(),
-    onSuccess: async (data) => {
-      if (!data) return;
-      setParcel(data);
-      setOfflineUsed(false);
-      try { localStorage.setItem(`cached_parcel_${data.tracking_id}`, JSON.stringify(data)); } catch {}
-      try {
-        const id = data.tracking_id;
-        const prev = JSON.parse(localStorage.getItem('tracking_history') || '[]');
-        const next = [id, ...prev.filter(x => x !== id)].slice(0, 6);
-        localStorage.setItem('tracking_history', JSON.stringify(next));
-        setRecent(next);
-      } catch {}
-      try {
-        const token = localStorage.getItem('token');
-        const payload = token ? decodeJwt(token) : null;
-        if (payload?.uid) {
-          await setDoc(doc(db, 'users', payload.uid), { tracking_history: recent }, { merge: true });
-        }
-      } catch {}
-    },
-    onError: (error) => {
-      try {
-        const cached = JSON.parse(localStorage.getItem(`cached_parcel_${trackingId}`) || 'null');
-        if (cached) {
-          setParcel(cached);
-          setOfflineUsed(true);
-          toast({ title: 'Offline data', description: 'Showing last saved tracking data.' });
-          return;
-        }
-      } catch {}
-      toast({ title: 'Error', description: error.message });
-    }
-  });
-
   useEffect(() => {
-    try {
-      const prev = JSON.parse(localStorage.getItem('tracking_history') || '[]');
-      setRecent(prev);
-    } catch {}
+    // Check if user is logged in by checking for token
+    const token = localStorage.getItem('token');
+    setIsLoggedIn(!!token);
+  }, []);
 
-    if (trackingId.trim()) {
-      const q = query(collection(db, 'parcels'), where('tracking_id', '==', trackingId));
-      const unsub = onSnapshot(q, (snapshot) => {
-        let found = null;
-        snapshot.forEach((d) => { found = d.data(); });
-        if (found) setParcel(found);
+  const handleSearch = async () => {
+    if (!trackingId.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a tracking ID",
+        variant: "destructive"
       });
-      return () => unsub();
+      return;
     }
-  }, [trackingId]);
 
-  const handleSearch = () => {
-    if (trackingId.trim()) {
-      setSearchParams({ trackingId: trackingId.trim() });
-      refetch();
+    setLoading(true);
+    setError('');
+    setParcel(null);
+    setOfflineUsed(false);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to track parcels",
+          variant: "destructive"
+        });
+        navigate('/login');
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/parcels/${trackingId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setParcel(response.data);
+      toast({
+        title: "Success",
+        description: "Tracking information found"
+      });
+    } catch (err) {
+      console.error('Error fetching parcel:', err);
+
+      // Try offline data if online fails
+      const offlineData = localStorage.getItem(`parcel_${trackingId}`);
+      if (offlineData) {
+        setParcel(JSON.parse(offlineData));
+        setOfflineUsed(true);
+        toast({
+          title: "Offline Mode",
+          description: "Showing offline data"
+        });
+        return;
+      }
+
+      if (err.response?.status === 404) {
+        setError('Tracking ID not found');
+        toast({
+          title: "Not Found",
+          description: "Tracking ID not found",
+          variant: "destructive"
+        });
+      } else if (err.response?.status === 401) {
+        setError('Authentication required. Please log in.');
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to track packages",
+          variant: "destructive"
+        });
+        navigate('/login');
+      } else {
+        setError('Error fetching tracking information');
+        toast({
+          title: "Error",
+          description: "Failed to fetch tracking information",
+          variant: "destructive"
+        });
+      }
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleQuickSelect = (id) => {
-    setTrackingId(id);
-    setSearchParams({ trackingId: id });
-    refetch();
   };
 
   const handleShare = async () => {
+    const url = `${window.location.origin}/tracking?trackingId=${trackingId}`;
     try {
-      const url = `${window.location.origin}/tracking?trackingId=${trackingId || parcel?.tracking_id || ''}`;
       await navigator.clipboard.writeText(url);
-      toast({ title: 'Link copied', description: 'Tracking link copied to clipboard.' });
+      toast({
+        title: "Success",
+        description: "Tracking link copied to clipboard"
+      });
     } catch (e) {
-      toast({ title: 'Copy failed', description: 'Unable to copy the link.' });
+      toast({
+        title: "Error",
+        description: "Unable to copy link",
+        variant: "destructive"
+      });
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'delivered': return 'bg-green-500';
-      case 'in transit': return 'bg-blue-500';
-      case 'processing': return 'bg-yellow-500';
-      case 'pending': return 'bg-gray-500';
-      default: return 'bg-gray-500';
-    }
+  const handleDownload = () => {
+    if (!parcel) return;
+
+    const data = {
+      trackingId: parcel.tracking_id,
+      status: parcel.status,
+      origin: parcel.origin,
+      destination: parcel.destination,
+      estimatedDelivery: parcel.estimated_delivery,
+      currentLocation: parcel.current_location,
+      history: parcel.history || []
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `tracking-${trackingId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Success",
+      description: "Tracking data downloaded"
+    });
   };
 
-  const getProgressValue = (status) => {
-    switch (status?.toLowerCase()) {
-      case 'delivered': return 100;
-      case 'in transit': return 75;
-      case 'processing': return 50;
-      case 'pending': return 25;
-      default: return 0;
-    }
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await handleSearch();
+    setTimeout(() => setIsRefreshing(false), 1000);
   };
-
-  const timeline = parcel?.updates?.length
-    ? parcel.updates.map((u, idx) => ({
-        status: (u.status || u.message || 'Update'),
-        date: u.timestamp ? new Date(u.timestamp).toLocaleDateString() : '',
-        icon: ((u.status || '')).toLowerCase() === 'delivered' ? CheckCircle
-          : ((u.status || '')).toLowerCase() === 'in transit' ? Truck
-          : ((u.status || '')).toLowerCase() === 'processing' ? Clock
-          : Package,
-        completed: ((u.status || '')).toLowerCase() === 'delivered' || idx < (parcel.updates.length - 1)
-      }))
-    : [
-      { status: 'Order Placed', date: '2024-01-15', icon: CheckCircle, completed: true },
-      { status: 'Processing', date: '2024-01-16', icon: Clock, completed: true },
-      { status: 'In Transit', date: '2024-01-17', icon: Truck, completed: true },
-      { status: 'Out for Delivery', date: '2024-01-18', icon: Package, completed: false },
-      { status: 'Delivered', date: '2024-01-18', icon: CheckCircle, completed: false }
-    ];
-
-  if (isLoading) {
-    return (
-      <div className="pt-20 p-4 max-w-7xl mx-auto">
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="pt-20 p-4 max-w-7xl mx-auto">
-      <AnimatePresence>
-        {offlineUsed && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 text-yellow-800 px-4 py-3"
-          >
-            <div className="flex items-center space-x-2">
-              <Clock className="w-5 h-5" />
-              <span>You are viewing cached tracking data (offline).</span>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header Section */}
+      <section className="bg-gradient-to-r from-primary to-blue-700 text-white py-16 relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{backgroundImage: 'url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80")'}}></div>
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Advanced Tracking</h1>
+          <p className="text-xl md:text-2xl mb-8 max-w-3xl mx-auto">
+            Real-time tracking with live map updates, detailed history, and comprehensive delivery information.
+          </p>
+          <div className="flex flex-wrap justify-center gap-8 text-sm md:text-base">
+            <div className="flex items-center gap-2">
+              <Map className="w-5 h-5" />
+              <span>Live map tracking</span>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Recent history */}
-      {recent?.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <p className="text-sm text-muted-foreground mb-3">Recent</p>
-          <div className="flex flex-wrap gap-2">
-            {recent.map((id) => (
-              <Button 
-                key={id} 
-                size="sm" 
-                variant="outline" 
-                onClick={() => handleQuickSelect(id)}
-                className="rounded-full btn-hover"
-              >
-                {id}
-              </Button>
-            ))}
-          </div>
-        </motion.div>
-      )}
-
-      {/* Search Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
-      >
-        <div className="max-w-md mx-auto">
-          <div className="flex space-x-2">
-            <Input 
-              placeholder="Enter Tracking ID" 
-              value={trackingId}
-              onChange={(e) => setTrackingId(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-              className="h-12 rounded-full border px-4"
-            />
-            <Button 
-              onClick={handleSearch}
-              className="h-12 px-6 rounded-full btn-hover"
-            >
-              Track
-            </Button>
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-5 h-5" />
+              <span>Real-time updates</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-5 h-5" />
+              <span>Offline support</span>
+            </div>
           </div>
         </div>
-      </motion.div>
+      </section>
 
-      <AnimatePresence mode="wait">
-        {parcel ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid lg:grid-cols-3 gap-6"
-          >
-            {/* Parcel Details */}
-            <div className="lg:col-span-2 space-y-6">
-              <Card className="card-hover shadow-lg rounded-xl border">
-                <CardHeader className="border-b pb-4">
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Parcel Details</span>
-                    <Badge className={`${getStatusColor(parcel.status)} text-white rounded-full px-3 py-1`}>
-                      {parcel.status}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-6 py-6">
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Tracking ID</p>
-                      <p className="font-semibold">{parcel.tracking_id}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Estimated Delivery</p>
-                      <p className="font-semibold">{new Date(parcel.estimated_delivery).toLocaleDateString()}</p>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-3">Delivery Progress</p>
-                    <div className="space-y-2">
-                      <Progress value={getProgressValue(parcel.status)} className="h-2" />
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Order Placed</span>
-                        <span>In Transit</span>
-                        <span>Out for Delivery</span>
-                        <span>Delivered</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Sender</p>
-                      <p className="font-semibold">{parcel.sender}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground mb-1">Receiver</p>
-                      <p className="font-semibold">{parcel.receiver}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Timeline */}
-              <Card className="card-hover shadow-lg rounded-xl border">
-                <CardHeader className="border-b pb-4">
-                  <CardTitle>Delivery Timeline</CardTitle>
-                </CardHeader>
-                <CardContent className="py-6">
-                  <div className="space-y-4">
-                    {timeline.map((item, index) => (
-                      <div key={index} className="flex items-start space-x-4">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-1 ${
-                          item.completed ? 'bg-green-500' : 'bg-gray-300'
-                        }`}>
-                          <item.icon className="w-5 h-5 text-white" />
-                        </div>
-                        <div className="flex-1 pb-4 border-l-2 border-gray-200 pl-4 -ml-5">
-                          <div className={`font-semibold ${item.completed ? 'text-foreground' : 'text-muted-foreground'}`}>
-                            {item.status}
-                          </div>
-                          <div className="text-sm text-muted-foreground">{item.date}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Map */}
-              <Card className="card-hover shadow-lg rounded-xl border">
-                <CardHeader className="border-b pb-4">
-                  <CardTitle className="flex items-center justify-between">
-                    <span>Live Location</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => setShowMap(!showMap)}
-                      className="rounded-full"
-                    >
-                      {showMap ? 'Hide Map' : 'Show Map'}
-                    </Button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="py-6">
-                  {showMap ? (
-                    <ErrorBoundary
-                      FallbackComponent={MapErrorFallback}
-                      onReset={() => {
-                        // Reset the map component if needed
-                      }}
-                    >
-                      <div className="h-96 rounded-lg overflow-hidden">
-                        {parcel?.location?.lat && parcel?.location?.lng ? (
-                          <MapWithLiveTracking parcel={parcel} />
-                        ) : (
-                          <div className="h-full flex items-center justify-center bg-gray-100 rounded-lg">
-                            <div className="text-center p-6">
-                              <div className="text-gray-400 mb-3">
-                                <MapPin className="w-16 h-16 mx-auto" />
-                              </div>
-                              <p className="text-gray-500 font-medium">Location data unavailable</p>
-                              <p className="text-gray-400 text-sm mt-1">Tracking information will update when location is available</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </ErrorBoundary>
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-6xl mx-auto">
+          {/* Search Section */}
+          <Card className="shadow-xl border-0 mb-8">
+            <CardHeader className="bg-gray-50 border-b">
+              <CardTitle className="text-2xl flex items-center gap-2">
+                <Search className="w-6 h-6 text-primary" />
+                Track Your Package
+              </CardTitle>
+              <p className="text-gray-600">Enter your tracking number for advanced tracking features.</p>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="flex flex-col md:flex-row gap-4">
+                <Input
+                  type="text"
+                  placeholder="Enter tracking number (e.g., RD123456789)"
+                  value={trackingId}
+                  onChange={(e) => setTrackingId(e.target.value)}
+                  className="flex-1"
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                />
+                <Button
+                  onClick={handleSearch}
+                  disabled={loading}
+                  className="bg-primary hover:bg-primary/90"
+                  size="lg"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Searching...
+                    </>
                   ) : (
-                    <div className="h-32 flex items-center justify-center bg-gray-50 rounded-lg">
-                      <p className="text-muted-foreground">Map hidden. Click "Show Map" to view.</p>
-                    </div>
+                    <>
+                      <Search className="mr-2 h-5 w-5" />
+                      Track Package
+                    </>
                   )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Sidebar */}
-            <div className="space-y-6">
-              <Card className="card-hover shadow-lg rounded-xl border">
-                <CardHeader className="border-b pb-4">
-                  <CardTitle className="flex items-center">
-                    <Bell className="w-5 h-5 mr-2" />
-                    Notifications
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 py-6">
-                  <div className="flex items-center justify-between">
-                    <span>Email Notifications</span>
-                    <Button 
-                      variant={notificationsEnabled ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setNotificationsEnabled(!notificationsEnabled)}
-                      className="rounded-full"
-                    >
-                      {notificationsEnabled ? 'Enabled' : 'Disabled'}
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>SMS Notifications</span>
-                    <Button variant="outline" size="sm" className="rounded-full">
-                      Disabled
-                    </Button>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span>Push Notifications</span>
-                    <Button variant="outline" size="sm" className="rounded-full">
-                      Disabled
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="card-hover shadow-lg rounded-xl border">
-                <CardHeader className="border-b pb-4">
-                  <CardTitle className="flex items-center">
-                    <Share2 className="w-5 h-5 mr-2" />
-                    Quick Actions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 py-6">
+                </Button>
+                {parcel && (
                   <Button
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
                     variant="outline"
-                    className="w-full btn-hover rounded-full"
-                    onClick={handleShare}
+                    size="lg"
                   >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    Share Tracking
+                    <RefreshCw className={`mr-2 h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh
                   </Button>
-                  <Button variant="outline" className="w-full btn-hover rounded-full">
-                    Report Issue
-                  </Button>
-                  <Button variant="outline" className="w-full btn-hover rounded-full">
-                    Contact Support
-                  </Button>
-                </CardContent>
-              </Card>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-              <Card className="card-hover shadow-lg rounded-xl border">
-                <CardHeader className="border-b pb-4">
-                  <CardTitle>Delivery Address</CardTitle>
+          {/* Offline Indicator */}
+          {offlineUsed && (
+            <Card className="border-yellow-200 bg-yellow-50 mb-8">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-yellow-700">
+                  <WifiOff className="w-5 h-5" />
+                  <span>Showing offline data. Connect to internet for latest updates.</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Error Display */}
+          {error && (
+            <Card className="border-red-200 bg-red-50 mb-8">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-red-700">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>{error}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Parcel Details */}
+          {parcel && (
+            <div className="space-y-8">
+              {/* Main Tracking Info */}
+              <Card className="shadow-xl border-0">
+                <CardHeader className="bg-gray-50 border-b">
+                  <CardTitle className="text-2xl flex items-center gap-2">
+                    <Package className="w-6 h-6 text-primary" />
+                    Tracking Details
+                  </CardTitle>
                 </CardHeader>
-                <CardContent className="py-6">
-                  <div className="space-y-2">
-                    <p className="font-semibold">{parcel.receiver}</p>
-                    <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
-                      123 Main Street, Apt 4B<br />
-                      New York, NY 10001
-                    </p>
+                <CardContent className="p-8">
+                  <div className="grid md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Tracking Number</label>
+                        <p className="text-lg font-semibold">{parcel.tracking_id}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Status</label>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${parcel.status === 'delivered' ? 'bg-green-500' : parcel.status === 'in_transit' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
+                          <span className="text-lg font-semibold capitalize">{parcel.status.replace('_', ' ')}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Estimated Delivery</label>
+                        <p className="text-lg">{new Date(parcel.estimated_delivery).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">From</label>
+                        <p className="text-lg">{parcel.origin}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">To</label>
+                        <p className="text-lg">{parcel.destination}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Current Location</label>
+                        <p className="text-lg">{parcel.current_location || 'Not available'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap gap-4 mt-8">
+                    <Button onClick={handleShare} variant="outline" className="flex items-center gap-2">
+                      <Share2 className="w-4 h-4" />
+                      Share Tracking
+                    </Button>
+                    <Button onClick={handleDownload} variant="outline" className="flex items-center gap-2">
+                      <Download className="w-4 h-4" />
+                      Download Data
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Live Map */}
+              <Card className="shadow-xl border-0">
+                <CardHeader className="bg-gray-50 border-b">
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <Map className="w-5 h-5 text-primary" />
+                    Live Tracking Map
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <LiveMap parcel={parcel} />
+                </CardContent>
+              </Card>
+
+              {/* Tracking History */}
+              {parcel.history && parcel.history.length > 0 && (
+                <Card className="shadow-xl border-0">
+                  <CardHeader className="bg-gray-50 border-b">
+                    <CardTitle className="text-xl flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-primary" />
+                      Tracking History
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-8">
+                    <div className="space-y-4">
+                      {parcel.history.map((event, index) => (
+                        <div key={index} className="flex items-start gap-4">
+                          <div className="flex flex-col items-center">
+                            <div className="w-3 h-3 bg-primary rounded-full"></div>
+                            {index < parcel.history.length - 1 && <div className="w-0.5 h-8 bg-gray-300 mt-2"></div>}
+                          </div>
+                          <div className="flex-1 pb-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-semibold">{event.status}</h4>
+                              <span className="text-sm text-gray-600">{new Date(event.timestamp).toLocaleString()}</span>
+                            </div>
+                            <p className="text-gray-600 mt-1">{event.location}</p>
+                            {event.description && <p className="text-sm text-gray-500 mt-1">{event.description}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-20"
-          >
-            <div className="max-w-md mx-auto">
-              <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No Parcel Found</h3>
-              <p className="text-gray-600 mb-4">
-                Enter a tracking ID above to view parcel details
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+
+          {/* Contact Information */}
+          <div className="grid md:grid-cols-3 gap-6 mt-8">
+            <Card className="text-center">
+              <CardContent className="p-6">
+                <Phone className="w-8 h-8 text-primary mx-auto mb-3" />
+                <h4 className="font-semibold mb-2">Phone Support</h4>
+                <p className="text-primary font-medium">+1-678-842-3655</p>
+                <p className="text-sm text-gray-600">Mon-Fri 8AM-6PM EST</p>
+              </CardContent>
+            </Card>
+            <Card className="text-center">
+              <CardContent className="p-6">
+                <Mail className="w-8 h-8 text-primary mx-auto mb-3" />
+                <h4 className="font-semibold mb-2">Email Support</h4>
+                <p className="text-primary font-medium">support@rushdelivery.com</p>
+                <p className="text-sm text-gray-600">24/7 Response</p>
+              </CardContent>
+            </Card>
+            <Card className="text-center">
+              <CardContent className="p-6">
+                <MapPin className="w-8 h-8 text-primary mx-auto mb-3" />
+                <h4 className="font-semibold mb-2">Office Address</h4>
+                <p className="text-primary font-medium">5955 Eden Drive</p>
+                <p className="text-sm text-gray-600">Haltom City, TX 76112</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
-
-export default TrackingEnhanced;

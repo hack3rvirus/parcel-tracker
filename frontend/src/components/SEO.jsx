@@ -1,65 +1,118 @@
-import { Helmet } from 'react-helmet-async';
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
-export function SEO({ 
-  title = 'SwiftShip - Fast & Reliable Delivery Service',
-  description = 'Track your parcels in real-time with SwiftShip. Fast, reliable, and secure delivery service with live tracking, notifications, and excellent customer support.',
-  keywords = 'delivery service, parcel tracking, logistics, shipping, courier',
-  image = '/logo.png',
-  url = 'https://swiftship.app',
-  type = 'website'
-}) {
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "Organization",
-    "name": "SwiftShip",
-    "url": url,
-    "logo": `${url}${image}`,
-    "description": description,
-    "contactPoint": {
-      "@type": "ContactPoint",
-      "telephone": "+1-800-SWIFTSHIP",
-      "contactType": "customer service",
-      "areaServed": "US",
-      "availableLanguage": "English"
-    },
-    "sameAs": [
-      "https://twitter.com/swiftship",
-      "https://facebook.com/swiftship",
-      "https://instagram.com/swiftship"
-    ]
-  };
+const SEO = ({ title, description, keywords, image, url, type = 'website' }) => {
+  const location = useLocation();
 
-  return (
-    <Helmet>
-      <title>{title}</title>
-      <meta name="description" content={description} />
-      <meta name="keywords" content={keywords} />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <meta property="og:title" content={title} />
-      <meta property="og:description" content={description} />
-      <meta property="og:image" content={`${url}${image}`} />
-      <meta property="og:url" content={url} />
-      <meta property="og:type" content={type} />
-      <meta name="twitter:card" content="summary_large_image" />
-      <meta name="twitter:title" content={title} />
-      <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={`${url}${image}`} />
-      <link rel="canonical" href={url} />
-      
-      <script type="application/ld+json">
-        {JSON.stringify(structuredData)}
-      </script>
-    </Helmet>
-  );
-}
+  useEffect(() => {
+    // Default values
+    const defaultTitle = 'Rush Delivery - Real-time Parcel Tracking & Logistics';
+    const defaultDescription = 'Track your parcels in real-time with Rush Delivery. Fast, secure, and reliable delivery services with live GPS tracking, instant notifications, and comprehensive logistics management.';
+    const defaultKeywords = 'parcel tracking, delivery service, logistics, real-time tracking, GPS tracking, package delivery, shipping, courier service';
+    const defaultImage = '/logo.png';
+    const siteUrl = window.location.origin;
 
-export function TrackingSEO({ trackingId, parcel }) {
-  return (
-    <SEO
-      title={`Track Parcel ${trackingId} - SwiftShip`}
-      description={`Track your SwiftShip parcel ${trackingId}. Current status: ${parcel?.status || 'In Transit'}. Get real-time updates and estimated delivery time.`}
-      keywords={`parcel tracking, ${trackingId}, delivery tracking, SwiftShip`}
-      url={`https://swiftship.app/tracking?trackingId=${trackingId}`}
-    />
-  );
-}
+    // Use provided values or defaults
+    const pageTitle = title || defaultTitle;
+    const pageDescription = description || defaultDescription;
+    const pageKeywords = keywords || defaultKeywords;
+    const pageImage = image || defaultImage;
+    const pageUrl = url || `${siteUrl}${location.pathname}`;
+
+    // Update document title
+    document.title = pageTitle;
+
+    // Update or create meta tags
+    const updateMetaTag = (name, content, property = false) => {
+      const attribute = property ? 'property' : 'name';
+      let element = document.querySelector(`meta[${attribute}="${name}"]`);
+
+      if (element) {
+        element.setAttribute('content', content);
+      } else {
+        element = document.createElement('meta');
+        element.setAttribute(attribute, name);
+        element.setAttribute('content', content);
+        document.getElementsByTagName('head')[0].appendChild(element);
+      }
+    };
+
+    // Basic meta tags
+    updateMetaTag('description', pageDescription);
+    updateMetaTag('keywords', pageKeywords);
+    updateMetaTag('author', 'Rush Delivery');
+
+    // Open Graph tags
+    updateMetaTag('og:title', pageTitle, true);
+    updateMetaTag('og:description', pageDescription, true);
+    updateMetaTag('og:image', `${siteUrl}${pageImage}`, true);
+    updateMetaTag('og:url', pageUrl, true);
+    updateMetaTag('og:type', type, true);
+    updateMetaTag('og:site_name', 'Rush Delivery', true);
+
+    // Twitter Card tags
+    updateMetaTag('twitter:card', 'summary_large_image');
+    updateMetaTag('twitter:title', pageTitle);
+    updateMetaTag('twitter:description', pageDescription);
+    updateMetaTag('twitter:image', `${siteUrl}${pageImage}`);
+
+    // Additional SEO tags
+    updateMetaTag('robots', 'index, follow');
+    updateMetaTag('viewport', 'width=device-width, initial-scale=1.0');
+
+    // Canonical URL
+    let canonicalElement = document.querySelector('link[rel="canonical"]');
+    if (canonicalElement) {
+      canonicalElement.setAttribute('href', pageUrl);
+    } else {
+      canonicalElement = document.createElement('link');
+      canonicalElement.setAttribute('rel', 'canonical');
+      canonicalElement.setAttribute('href', pageUrl);
+      document.getElementsByTagName('head')[0].appendChild(canonicalElement);
+    }
+
+    // Structured Data (JSON-LD)
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Rush Delivery",
+      "url": siteUrl,
+      "logo": `${siteUrl}/logo.png`,
+      "description": pageDescription,
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "telephone": "+234-700-7874-335",
+        "contactType": "customer service",
+        "email": "support@rushdelivery.com"
+      },
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "123 Swift Lane",
+        "addressLocality": "Ikeja",
+        "addressRegion": "Lagos",
+        "postalCode": "100001",
+        "addressCountry": "Nigeria"
+      },
+      "sameAs": [
+        "https://facebook.com/rushdelivery",
+        "https://twitter.com/rushdelivery",
+        "https://linkedin.com/company/rushdelivery"
+      ]
+    };
+
+    let scriptElement = document.querySelector('script[type="application/ld+json"]');
+    if (scriptElement) {
+      scriptElement.textContent = JSON.stringify(structuredData);
+    } else {
+      scriptElement = document.createElement('script');
+      scriptElement.type = 'application/ld+json';
+      scriptElement.textContent = JSON.stringify(structuredData);
+      document.getElementsByTagName('head')[0].appendChild(scriptElement);
+    }
+
+  }, [title, description, keywords, image, url, location.pathname, type]);
+
+  return null;
+};
+
+export default SEO;

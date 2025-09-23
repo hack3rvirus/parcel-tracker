@@ -1,14 +1,17 @@
 services:
-  # Combined Frontend + Backend Service
+  # Frontend Service
   - type: web
-    name: parcel-tracker
-    env: python
+    name: rush-delivery-frontend
+    env: static
     plan: free
-    buildCommand: cd frontend && npm ci && npm run build && cd ../backend && pip install -r requirements.txt
-    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: npm ci && npm run build
+    publishPath: dist
     envVars:
       - key: VITE_API_URL
-        value: https://parcel-trackerr.onrender.com
+        fromService:
+          type: web
+          name: rush-delivery-backend
+          property: host
       - key: VITE_FIREBASE_API_KEY
         sync: false
       - key: VITE_FIREBASE_AUTH_DOMAIN
@@ -21,9 +24,26 @@ services:
         sync: false
       - key: VITE_FIREBASE_APP_ID
         sync: false
-      - key: VITE_FIREBASE_MEASUREMENT_ID
+      - key: VITE_GA_ID
         sync: false
+      - key: NODE_ENV
+        value: production
+
+  # Backend Service
+  - type: web
+    name: rush-delivery-backend
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
       - key: FIREBASE_SERVICE_ACCOUNT_PATH
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://rush-delivery-frontend.onrender.com,https://your-custom-domain.com
+      - key: ENVIRONMENT
+        value: production
+      - key: PYTHONPATH
+        value: .

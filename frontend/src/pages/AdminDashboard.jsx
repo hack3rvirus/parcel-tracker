@@ -9,8 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
 import { Package, AlertCircle, Plus, Edit, Trash2, Search, CheckCircle, Upload, Check, Bell } from 'lucide-react';
 import axios from 'axios';
-import { db } from '@/firebase';
-import { collection as fCollection, getDocs as fGetDocs, updateDoc as fUpdateDoc, doc as fDoc } from 'firebase/firestore';
+import API_BASE_URL from '@/config/api';
 
 function AdminDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -55,7 +54,7 @@ function AdminDashboard() {
 
   const fetchParcels = async () => {
     const token = localStorage.getItem('token');
-    const res = await axios.get('http://127.0.0.1:8000/parcels', {
+    const res = await axios.get(`${API_BASE_URL}/parcels`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     return res.data;
@@ -69,7 +68,7 @@ function AdminDashboard() {
   const updateParcelMutation = useMutation({
     mutationFn: async ({ id, data }) => {
       const token = localStorage.getItem('token');
-      return axios.put(`http://127.0.0.1:8000/parcels/${id}`, data, {
+      return axios.put(`${API_BASE_URL}/parcels/${id}`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
     },
@@ -82,8 +81,8 @@ function AdminDashboard() {
   const deleteParcelMutation = useMutation({
     mutationFn: async (id) => {
       const token = localStorage.getItem('token');
-      return axios.delete(`http://127.0.0.1:8000/parcels/${id}`, {
-        headers: { Authorization: { toString: () => `Bearer ${token}` } }
+      return axios.delete(`${API_BASE_URL}/parcels/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
     },
     onSuccess: () => {
@@ -95,7 +94,7 @@ function AdminDashboard() {
   const createParcelMutation = useMutation({
     mutationFn: async (data) => {
       const token = localStorage.getItem('token');
-      return axios.post('http://127.0.0.1:8000/parcels', data, {
+      return axios.post(`${API_BASE_URL}/parcels`, data, {
         headers: { Authorization: `Bearer ${token}` }
       });
     },
@@ -120,7 +119,7 @@ function AdminDashboard() {
   const pushTestMutation = useMutation({
     mutationFn: async (payload) => {
       const token = localStorage.getItem('token');
-      return axios.post('http://127.0.0.1:8000/push/test', payload, {
+      return axios.post(`${API_BASE_URL}/push/test`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
     },
@@ -273,15 +272,16 @@ function AdminDashboard() {
     (async () => {
       try {
         setLoadingUsers(true);
-        const snap = await fGetDocs(fCollection(db, 'users'));
-        const list = [];
-        snap.forEach((d) => {
-          const data = d.data();
-          list.push({ id: d.id, email: data.email || '', role: data.role || 'client', tokens: Array.isArray(data.fcm_tokens) ? data.fcm_tokens.length : 0 });
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_BASE_URL}/admin/users`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        setUsersList(list);
-      } catch {}
-      finally { setLoadingUsers(false); }
+        setUsersList(response.data);
+      } catch (e) {
+        console.error('Error loading users:', e);
+      } finally {
+        setLoadingUsers(false);
+      }
     })();
   }, []);
 
@@ -530,15 +530,16 @@ function AdminDashboard() {
                 <Button size="sm" variant="outline" onClick={async ()=>{
                   try {
                     setLoadingUsers(true);
-                    const snap = await fGetDocs(fCollection(db, 'users'));
-                    const list = [];
-                    snap.forEach((d) => {
-                      const data = d.data();
-                      list.push({ id: d.id, email: data.email || '', role: data.role || 'client', tokens: Array.isArray(data.fcm_tokens) ? data.fcm_tokens.length : 0 });
+                    const token = localStorage.getItem('token');
+                    const response = await axios.get(`${API_BASE_URL}/admin/users`, {
+                      headers: { Authorization: `Bearer ${token}` }
                     });
-                    setUsersList(list);
-                  } catch {}
-                  finally { setLoadingUsers(false); }
+                    setUsersList(response.data);
+                  } catch (e) {
+                    console.error('Error refreshing users:', e);
+                  } finally {
+                    setLoadingUsers(false);
+                  }
                 }}>Refresh</Button>
               </div>
               {loadingUsers ? (
@@ -563,7 +564,10 @@ function AdminDashboard() {
                               try {
                                 const role = e.target.value;
                                 setUsersList(prev => prev.map(x => x.id === u.id ? { ...x, role } : x));
-                                await fUpdateDoc(fDoc(db, 'users', u.id), { role });
+                                const token = localStorage.getItem('token');
+                                await axios.put(`${API_BASE_URL}/admin/users/${u.id}/role`, { role }, {
+                                  headers: { Authorization: `Bearer ${token}` }
+                                });
                                 toast({ title: 'Role updated' });
                               } catch (err) {
                                 toast({ title: 'Update failed', description: err?.message || 'Could not update role' });
@@ -573,7 +577,7 @@ function AdminDashboard() {
                               <option value="admin">admin</option>
                             </select>
                           </td>
-                          <td className="py-2 pr-3">{u.tokens}</td>
+                          <td className="py-2 pr-3">{u.tokens || 0}</td>
                           <td className="py-2 pr-3">
                             <div className="text-muted-foreground">—</div>
                           </td>

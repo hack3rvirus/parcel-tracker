@@ -3,12 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { useToast } from "@/components/ui/use-toast";
-import Lottie from "lottie-react";
-import deliveryAnimation from "@/assets/delivery-van.json";
-import faqAnimation from "@/assets/Delivery guy.json";
-import { MapPin, Bell, ShieldCheck, Star, Shield, Lock, Cpu, Boxes, Hospital, ShoppingCart, Building2 } from "lucide-react";
+import { MapPin, Bell, ShieldCheck, Star, Shield, Lock, Cpu, Boxes, Hospital, ShoppingCart, Building2, Globe, Truck, Clock, CheckCircle, Package, ArrowRight, Users, Award, Headphones, Zap, Map } from "lucide-react";
+import HeroSlideshow from "@/components/HeroSlideshow";
+import AdminKeyPrompt from "@/components/AdminKeyPrompt";
+import "@/components/FlagSlider.css";
 
 function Counter({ to = 0, duration = 1600, prefix = '', suffix = '', className = '' }) {
   const [val, setVal] = useState(0);
@@ -47,10 +46,51 @@ function Counter({ to = 0, duration = 1600, prefix = '', suffix = '', className 
   );
 }
 
+function FlagSlider() {
+  const countries = [
+    { name: 'Algeria', code: 'dz' },
+    { name: 'Australia', code: 'au' },
+    { name: 'United Kingdom', code: 'gb' },
+    { name: 'Canada', code: 'ca' },
+    { name: 'South Africa', code: 'za' },
+    { name: 'Germany', code: 'de' },
+    { name: 'France', code: 'fr' },
+    { name: 'Japan', code: 'jp' },
+    { name: 'Brazil', code: 'br' },
+    { name: 'India', code: 'in' },
+    { name: 'China', code: 'cn' },
+    { name: 'Russia', code: 'ru' }
+  ];
+
+  return (
+    <div className="relative overflow-hidden py-8">
+      <div className="flex animate-scroll-left hover:pause-scroll">
+        {[...countries, ...countries].map((country, index) => (
+          <div key={`${country.code}-${index}`} className="flex-shrink-0 mx-4">
+            <div className="w-16 h-12 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 group">
+              <img
+                src={`https://flagcdn.com/w80/${country.code}.png`}
+                alt={`${country.name} flag`}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              />
+            </div>
+            <div className="text-center mt-2">
+              <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors">
+                {country.name}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [trackingId, setTrackingId] = useState('');
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -68,10 +108,10 @@ export default function Home() {
     try {
       setSubmitting(true);
       await new Promise((r) => setTimeout(r, 600));
-      toast({ title: 'Subscribed', description: 'You will receive updates and tips in your inbox.' });
+      toast({ title: 'Success', description: 'Subscribed successfully!' });
       setEmail('');
-    } catch (e) {
-      toast({ title: 'Subscription failed', description: 'Please try again later.' });
+    } catch (error) {
+      toast({ title: 'Error', description: 'Failed to subscribe. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -79,423 +119,350 @@ export default function Home() {
 
   return (
     <>
-      {/* Hero Section */}
-      <section className="relative w-full py-16 md:py-28 bg-gradient-to-r from-primary to-blue-700 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-black/30 pointer-events-none"></div>
-        <div className="container relative z-10 grid md:grid-cols-2 gap-10 items-center animate-fade-in-up">
-          <div className="space-y-6">
-            <h1 className="font-heading text-4xl md:text-6xl font-bold leading-tight">
-              Track Your Deliveries in <span className="text-accent">Real-Time</span>
-            </h1>
-            <p className="text-xl text-blue-100 max-w-lg">
-              Experience the future of logistics with our cutting-edge tracking system. 
-              Fast, secure, and reliable delivery management at your fingertips.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-3 max-w-lg">
-              <Input 
-                type="text" 
-                placeholder="Enter Tracking ID" 
-                value={trackingId}
-                onChange={(e) => setTrackingId(e.target.value)}
-                className="bg-white/95 text-gray-800 h-12 text-lg"
-                onKeyPress={(e) => e.key === 'Enter' && handleTrack()}
-              />
-              <Button 
-                size="lg" 
-                className="bg-accent hover:bg-accent/90 h-12 px-8 text-lg font-semibold btn-hover"
-                onClick={handleTrack}
-              >
-                Track Parcel
-              </Button>
-            </div>
-            <div className="flex items-center gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse-slow"></div>
-                <span>Live Tracking</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse-slow"></div>
-                <span>99.9% Uptime</span>
-              </div>
-            </div>
-          </div>
-          <div className="block md:block max-w-[240px] md:max-w-[420px] mx-auto md:justify-self-end animate-fade-in">
-            <Lottie animationData={deliveryAnimation} loop={true} />
+      {/* Admin Access Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        <Button
+          onClick={() => setShowAdminPrompt(true)}
+          className="rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+          size="icon"
+        >
+          <Shield className="w-6 h-6" />
+        </Button>
+      </div>
+
+      {/* Admin Key Prompt Modal */}
+      {showAdminPrompt && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="max-w-md w-full">
+            <AdminKeyPrompt onSuccess={() => setShowAdminPrompt(false)} />
+            <Button
+              variant="outline"
+              onClick={() => setShowAdminPrompt(false)}
+              className="w-full mt-4"
+            >
+              Cancel
+            </Button>
           </div>
         </div>
-      </section>
+      )}
 
-      {/* Live Stats Strip */}
-      <section className="py-10 bg-white border-b section-spacing">
-        <div className="container grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-            <Counter to={200000} suffix="+" className="text-primary" />
-            <div className="text-sm text-muted-foreground">Parcels Delivered</div>
-          </div>
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            <Counter to={999} suffix=".9%" className="text-accent" />
-            <div className="text-sm text-muted-foreground">Platform Uptime</div>
-          </div>
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-            <Counter to={9000} suffix="+" className="text-primary" />
-            <div className="text-sm text-muted-foreground">Active Customers</div>
-          </div>
-          <div className="animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
-            <Counter to={100} suffix="+" className="text-accent" />
-            <div className="text-sm text-muted-foreground">Regions Served</div>
-          </div>
-        </div>
-      </section>
+      {/* Hero Slideshow Section */}
+      <HeroSlideshow />
 
-      {/* Features Section */}
-      <section className="py-20 bg-slate-50 section-spacing">
-        <div className="container">
+      {/* Global Reach Section */}
+      <section className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="container mx-auto px-4">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose Rush Delivery?</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              We provide the most advanced logistics tracking system with real-time updates, 
-              secure handling, and exceptional customer service.
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Our Global Reach</h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Connecting businesses and individuals across continents with our extensive international delivery network
             </p>
           </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
+            <div className="text-center">
+              <div className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+                <Globe className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+                <Counter to={50} suffix="+" className="text-3xl font-bold text-primary mb-2" />
+                <p className="text-gray-600">Countries Covered</p>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+                <Users className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                <Counter to={1000} suffix="+" className="text-3xl font-bold text-primary mb-2" />
+                <p className="text-gray-600">Happy Customers</p>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+                <Package className="w-12 h-12 text-purple-600 mx-auto mb-4" />
+                <Counter to={5000} suffix="+" className="text-3xl font-bold text-primary mb-2" />
+                <p className="text-gray-600">Packages Delivered</p>
+              </div>
+            </div>
+            <div className="text-center">
+              <div className="bg-white rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow">
+                <Award className="w-12 h-12 text-orange-600 mx-auto mb-4" />
+                <Counter to={99} suffix="%" className="text-3xl font-bold text-primary mb-2" />
+                <p className="text-gray-600">On-Time Delivery</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Choose Us Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">Why Choose Rush Delivery?</h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="text-center group">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                <Zap className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Fast & Reliable</h3>
+              <p className="text-gray-600">Quick delivery times with real-time tracking and guaranteed service</p>
+            </div>
+            <div className="text-center group">
+              <div className="bg-gradient-to-br from-green-500 to-green-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                <Shield className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Secure & Safe</h3>
+              <p className="text-gray-600">Your packages are protected with insurance coverage and secure handling</p>
+            </div>
+            <div className="text-center group">
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                <Globe className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3">Global Network</h3>
+              <p className="text-gray-600">Extensive international shipping network with worldwide coverage</p>
+            </div>
+            <div className="text-center group">
+              <div className="bg-gradient-to-br from-orange-500 to-orange-600 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
+                <Headphones className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-semibold mb-3">24/7 Support</h3>
+              <p className="text-gray-600">Round-the-clock customer service with dedicated support team</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Popular Destinations */}
+      <section className="py-20 bg-gray-50">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">Popular Destinations</h2>
+          <FlagSlider />
+        </div>
+      </section>
+
+      {/* Services Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">Our Services</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="text-center card-hover border-0 shadow-lg">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
               <CardHeader>
-                <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit">
-                  <MapPin className="h-8 w-8 text-primary" />
-                </div>
-                <CardTitle className="mt-4 text-xl">Live Map Tracking</CardTitle>
+                <CardTitle className="flex items-center gap-3">
+                  <Package className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+                  Package Delivery
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p>Watch your parcel move on the map in real-time from pickup to delivery.</p>
+                <p className="text-gray-600 mb-4">
+                  Fast and secure delivery of packages of all sizes, from documents to large freight. Our advanced tracking system ensures your packages are monitored every step of the way.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Real-time tracking updates
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Insurance coverage included
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Door-to-door service
+                  </li>
+                </ul>
               </CardContent>
             </Card>
-            <Card className="text-center card-hover border-0 shadow-lg">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
               <CardHeader>
-                <div className="mx-auto bg-accent/10 p-4 rounded-full w-fit">
-                  <Bell className="h-8 w-8 text-accent" />
-                </div>
-                <CardTitle className="mt-4 text-xl">Instant Updates</CardTitle>
+                <CardTitle className="flex items-center gap-3">
+                  <Truck className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+                  Express Shipping
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p>Receive instant notifications for every step of your parcel's journey.</p>
+                <p className="text-gray-600 mb-4">
+                  Urgent delivery services with guaranteed timeframes for your most important shipments. Perfect for time-sensitive documents and critical business deliveries.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Same-day delivery available
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Priority handling
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Dedicated express lanes
+                  </li>
+                </ul>
               </CardContent>
             </Card>
-            <Card className="text-center card-hover border-0 shadow-lg">
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-all duration-300 group">
               <CardHeader>
-                <div className="mx-auto bg-gray-500/10 p-4 rounded-full w-fit">
-                  <ShieldCheck className="h-8 w-8 text-gray-500" />
-                </div>
-                <CardTitle className="mt-4 text-xl">Secure & Reliable</CardTitle>
+                <CardTitle className="flex items-center gap-3">
+                  <Globe className="w-8 h-8 text-primary group-hover:scale-110 transition-transform" />
+                  International Shipping
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <p>Your deliveries are handled with the utmost care and security.</p>
+                <p className="text-gray-600 mb-4">
+                  Worldwide shipping services with customs clearance and international tracking. We handle all the complexities of international logistics so you don't have to.
+                </p>
+                <ul className="space-y-2 text-sm text-gray-600">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Customs clearance assistance
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    International tracking
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    Multi-currency support
+                  </li>
+                </ul>
               </CardContent>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* Partners & Integrations */}
-      <section className="py-16 bg-white">
-        <style>{`
-          .marquee-container { position: relative; overflow: hidden; }
-          .marquee-fade:before, .marquee-fade:after { content: ""; position: absolute; top:0; bottom:0; width:80px; z-index: 1; }
-          .marquee-fade:before { left:0; background: linear-gradient(to right, rgba(255,255,255,1), rgba(255,255,255,0)); }
-          .marquee-fade:after { right:0; background: linear-gradient(to left, rgba(255,255,255,1), rgba(255,255,255,0)); }
-          @keyframes marquee {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-          }
-          .partners-track { display:flex; gap:48px; align-items:center; width: max-content; animation: marquee 40s linear infinite; }
-          .partners-logo { height: 36px; filter: grayscale(100%); opacity: 0.9; transition: filter .2s, opacity .2s, transform .2s; }
-          .partners-logo:hover { filter: grayscale(0%); opacity: 1; transform: scale(1.03); }
-        `}</style>
-        <div className="container">
-          <div className="text-center mb-8">
-            <p className="text-sm tracking-wide text-muted-foreground">PARTNERS & INTEGRATIONS</p>
-            <h2 className="text-2xl md:text-3xl font-bold">We work with world‑class logistics providers</h2>
-          </div>
-          <div className="marquee-container marquee-fade">
-            <div className="partners-track">
-              {[
-                { name: 'DHL', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/DHL_Logo.svg/2560px-DHL_Logo.svg.png' },
-                { name: 'UPS', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/United_Parcel_Service_logo_2014.svg/2560px-United_Parcel_Service_logo_2014.svg.png' },
-                { name: 'FedEx', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/FedEx_Express.svg/2560px-FedEx_Express.svg.png' },
-                { name: 'USPS', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/43/USPS_Logo.svg/2560px-USPS_Logo.svg.png' },
-                { name: 'DPD', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/DPD_Logo.svg/2560px-DPD_Logo.svg.png' },
-                { name: 'GLS', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/GLS_logo.svg/2560px-GLS_logo.svg.png' },
-                { name: 'TNT', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1a/TNT_Express_logo.svg/2560px-TNT_Express_logo.svg.png' },
-                { name: 'Aramex', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Aramex_logo.svg/2560px-Aramex_logo.svg.png' },
-                { name: 'Maersk', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Maersk_Group_logo.svg/2560px-Maersk_Group_logo.svg.png' },
-                { name: 'DB Schenker', url: 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/DB_Schenker_Logo.svg/2560px-DB_Schenker_Logo.svg.png' },
-              ].map((p) => (
-                <img key={p.name} src={p.url} alt={`${p.name} logo`} className="partners-logo" />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Use Cases */}
-      <section className="py-16 bg-slate-50 section-spacing">
-        <div className="container">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold">Use Cases</h2>
-            <p className="text-muted-foreground">Tailored solutions for every logistics workflow</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card className="border-0 shadow-md card-hover">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-primary"><ShoppingCart className="h-5 w-5" /><CardTitle>E‑commerce</CardTitle></div>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">Real-time tracking for customer transparency and reduced WISMO support.</CardContent>
-            </Card>
-            <Card className="border-0 shadow-md card-hover">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-primary"><Building2 className="h-5 w-5" /><CardTitle>B2B Logistics</CardTitle></div>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">Fleet-level visibility, route monitoring, and exception alerts for operations.</CardContent>
-            </Card>
-            <Card className="border-0 shadow-md card-hover">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-primary"><Hospital className="h-5 w-5" /><CardTitle>Healthcare</CardTitle></div>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">Temperature-sensitive tracking, chain-of-custody logging, and on-time delivery.</CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Security & Compliance */}
-      <section className="py-16 bg-white section-spacing">
-        <div className="container">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold">Security & Compliance</h2>
-            <p className="text-muted-foreground">Built with best practices for data protection and reliability</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            <Card className="border rounded-md card-hover">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-primary"><Lock className="h-5 w-5" /><CardTitle>Encryption‑in‑Transit</CardTitle></div>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">All communication is secured with TLS. Sensitive fields are restricted by role.</CardContent>
-            </Card>
-            <Card className="border rounded-md card-hover">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-primary"><Shield className="h-5 w-5" /><CardTitle>Role‑Based Access</CardTitle></div>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">Admin and client roles ensure appropriate privileges for parcel operations.</CardContent>
-            </Card>
-            <Card className="border rounded-md card-hover">
-              <CardHeader>
-                <div className="flex items-center gap-2 text-primary"><Cpu className="h-5 w-5" /><CardTitle>Reliable Infrastructure</CardTitle></div>
-              </CardHeader>
-              <CardContent className="text-muted-foreground">PWA offline support, push alerts, and real‑time updates keep you connected.</CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works Section */}
-      <section className="py-20 bg-white section-spacing">
-        <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Simple steps to track your parcels with our advanced system
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center card-hover">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">1</span>
+      {/* Live Map Section */}
+      <section className="py-20 bg-gray-900 text-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Live Tracking Network</h2>
+          <div className="bg-gray-800 rounded-2xl p-8 shadow-2xl">
+            <div className="aspect-video bg-gray-700 rounded-lg flex items-center justify-center">
+              <div className="text-center">
+                <Map className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                <p className="text-gray-300 mb-4">Interactive Live Map</p>
+                <p className="text-sm text-gray-400">
+                  Real-time tracking of all active deliveries across our global network
+                </p>
+                <Button className="mt-4 bg-primary hover:bg-primary/90">
+                  View Live Map
+                </Button>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Enter Tracking ID</h3>
-              <p className="text-gray-600">Input your unique tracking number in the search bar</p>
-            </div>
-            <div className="text-center card-hover">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">2</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">View Real-time Location</h3>
-              <p className="text-gray-600">See your parcel's exact location on the interactive map</p>
-            </div>
-            <div className="text-center card-hover">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-white font-bold text-xl">3</span>
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Get Notifications</h3>
-              <p className="text-gray-600">Receive instant updates at every step of the journey</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20 bg-slate-50 section-spacing">
-        <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">What Our Customers Say</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
-              Don't just take our word for it - hear from our satisfied customers
-            </p>
-          </div>
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">What Our Customers Say</h2>
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="p-6 card-hover">
-              <div className="flex items-center mb-4">
-                <img 
-                  src="https://images.unsplash.com/photo-1494790108755-2616b612b786?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=120&h=120&q=80" 
-                  alt="Sarah Johnson" 
-                  className="w-12 h-12 rounded-full mr-4 object-cover"
-                />
-                <div>
-                  <h4 className="font-semibold">Sarah Johnson</h4>
-                  <p className="text-sm text-gray-600">Business Owner</p>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                  ))}
                 </div>
-              </div>
-              <div className="flex mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              <p className="text-gray-600">
-                "Rush Delivery has transformed how we manage our logistics. 
-                The real-time tracking is incredibly accurate and reliable."
-              </p>
+                <p className="text-gray-600 mb-4">
+                  "Rush Delivery has been our go-to shipping partner for international orders. Their real-time tracking and reliable service have helped us expand our business globally."
+                </p>
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold mr-4">
+                    S
+                  </div>
+                  <div>
+                    <p className="font-semibold">Sarah Johnson</p>
+                    <p className="text-sm text-gray-500">CEO, TechStart Inc.</p>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
-            <Card className="p-6 card-hover">
-              <div className="flex items-center mb-4">
-                <img 
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=120&h=120&q=80" 
-                  alt="Michael Chen" 
-                  className="w-12 h-12 rounded-full mr-4 object-cover"
-                />
-                <div>
-                  <h4 className="font-semibold">Michael Chen</h4>
-                  <p className="text-sm text-gray-600">E-commerce Manager</p>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                  ))}
                 </div>
-              </div>
-              <div className="flex mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              <p className="text-gray-600">
-                "The notifications are instant and the interface is so intuitive. 
-                Our customers love the transparency."
-              </p>
+                <p className="text-gray-600 mb-4">
+                  "Outstanding service! Our urgent packages always arrive on time, and the customer support team is incredibly responsive. Highly recommended for any business."
+                </p>
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold mr-4">
+                    M
+                  </div>
+                  <div>
+                    <p className="font-semibold">Michael Chen</p>
+                    <p className="text-sm text-gray-500">Operations Manager, GlobalMart</p>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
-            <Card className="p-6 card-hover">
-              <div className="flex items-center mb-4">
-                <img 
-                  src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=120&h=120&q=80" 
-                  alt="Emily Rodriguez" 
-                  className="w-12 h-12 rounded-full mr-4 object-cover"
-                />
-                <div>
-                  <h4 className="font-semibold">Emily Rodriguez</h4>
-                  <p className="text-sm text-gray-600">Freelance Designer</p>
+            <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
+                  ))}
                 </div>
-              </div>
-              <div className="flex mb-2">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="h-4 w-4 text-yellow-400 fill-current" />
-                ))}
-              </div>
-              <p className="text-gray-600">
-                "I can track all my shipments in one place. The mobile app is 
-                fantastic and works perfectly on the go."
-              </p>
+                <p className="text-gray-600 mb-4">
+                  "The live tracking feature gives us complete visibility over our shipments. Rush Delivery has streamlined our entire logistics process and saved us countless hours."
+                </p>
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-full flex items-center justify-center text-white font-bold mr-4">
+                    E
+                  </div>
+                  <div>
+                    <p className="font-semibold">Emily Rodriguez</p>
+                    <p className="text-sm text-gray-500">Supply Chain Director, MediCorp</p>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           </div>
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-16 bg-white">
-        <div className="container">
-          <div className="flex flex-col lg:flex-row gap-8">
-            <div className="lg:w-1/2">
-              <div className="max-w-3xl">
-                <div className="text-center mb-8">
-                  <h2 className="text-3xl md:text-4xl font-bold mb-2">Frequently Asked Questions</h2>
-                  <p className="text-muted-foreground">Everything you need to know about tracking and deliveries</p>
-                </div>
-                <Accordion type="single" collapsible className="w-full">
-                  <AccordionItem value="q1">
-                    <AccordionTrigger>Do I need an account to track a parcel?</AccordionTrigger>
-                    <AccordionContent>
-                      Yes. For privacy and security, tracking requires authentication. Create an account or log in to proceed.
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="q2">
-                    <AccordionTrigger>What statuses can I expect to see?</AccordionTrigger>
-                    <AccordionContent>
-                      Typical statuses include Pending, Processing, In Transit, Out for Delivery, and Delivered.
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="q3">
-                    <AccordionTrigger>Can I receive notifications?</AccordionTrigger>
-                    <AccordionContent>
-                      Yes. You can enable email and in-app toasts in the Tracking page. Push notifications are coming soon.
-                    </AccordionContent>
-                  </AccordionItem>
-                  <AccordionItem value="q4">
-                    <AccordionTrigger>How accurate is the live map?</AccordionTrigger>
-                    <AccordionContent>
-                      Accuracy depends on the courier's GPS availability and frequency of updates. We display the latest known location.
-                    </AccordionContent>
-                  </AccordionItem>
-                </Accordion>
-              </div>
-            </div>
-            <div className="lg:w-1/2 flex justify-center items-center hidden lg:flex">
-              <div className="max-w-md w-full">
-                <Lottie animationData={faqAnimation} loop={true} />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Newsletter Section */}
-      <section className="py-16 bg-slate-50 section-spacing">
-        <div className="container max-w-3xl">
-          <div className="text-center mb-6">
-            <h2 className="text-2xl md:text-3xl font-bold mb-2">Get Logistics Tips & Updates</h2>
-            <p className="text-muted-foreground">Subscribe to our monthly digest for tracking best practices and product news.</p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 max-w-xl mx-auto">
-            <Input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="h-12 text-base"
-              aria-label="Email address"
-            />
-            <Button size="lg" className="h-12 px-6 btn-hover" onClick={handleSubscribe} disabled={submitting} aria-label="Subscribe">
-              {submitting ? 'Submitting...' : 'Subscribe'}
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="relative py-16 md:py-20 pb-24 md:pb-20 bg-gradient-to-r from-primary to-blue-700 text-white">
-        <div className="absolute inset-0 bg-black/40 pointer-events-none"></div>
-        <div className="container text-center relative z-10">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Get Started?</h2>
+      {/* CTA Section with Background */}
+      <section className="py-20 bg-gradient-to-r from-primary via-blue-600 to-purple-700 text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-black/20"></div>
+        <div className="absolute inset-0 bg-cover bg-center opacity-30" style={{backgroundImage: 'url("https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1200&q=80")'}}></div>
+        <div className="container mx-auto px-4 text-center relative z-10">
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to Ship with Rush Delivery?</h2>
           <p className="text-xl mb-8 max-w-2xl mx-auto">
-            Join thousands of satisfied customers who trust Rush Delivery for their logistics needs
+            Experience the future of international shipping with our reliable and efficient services. Join thousands of satisfied customers worldwide.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-accent hover:bg-accent/90 px-8 text-lg btn-hover">
-              Track Your Parcel
+            <Button size="lg" variant="secondary" className="bg-gray text-gray hover:bg-gray-100 px-8 py-3">
+              Schedule Pickup
+              <ArrowRight className="ml-2 w-4 h-4" />
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary btn-hover">
-              Learn More
+            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-primary px-8 py-3">
+              Get Quote
             </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* About Section */}
+      <section className="py-20 bg-white">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">About Rush Delivery</h2>
+            <p className="text-lg text-gray-600 leading-relaxed mb-8">
+              Rush Delivery is your trusted partner for international shipping and logistics. We provide fast, reliable, and secure delivery services to customers worldwide. Our advanced tracking system ensures you can monitor your packages every step of the way.
+            </p>
+            <div className="grid md:grid-cols-3 gap-8 mt-12">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold mb-3">Our Mission</h3>
+                <p className="text-gray-600">To provide exceptional logistics solutions that connect businesses and individuals across the globe with speed, reliability, and security.</p>
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-semibold mb-3">Our Vision</h3>
+                <p className="text-gray-600">To be the world's most trusted and efficient international delivery network, setting new standards in logistics technology.</p>
+              </div>
+              <div className="text-center">
+                <h3 className="text-xl font-semibold mb-3">Our Values</h3>
+                <p className="text-gray-600">Reliability, security, innovation, and customer satisfaction drive everything we do at Rush Delivery.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>
