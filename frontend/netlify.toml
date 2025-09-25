@@ -5,11 +5,9 @@
   # Directory to publish (relative to base directory)
   publish = "dist"
 
-  # Node version (specify if different from the default)
-  environment = { NODE_VERSION = "22" }
-
 # Environment variables for production
 [build.environment]
+  NODE_VERSION = "22"
   NODE_ENV = "production"
 
 # Headers for security and performance
