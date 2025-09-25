@@ -8,6 +8,7 @@
 # Environment variables for production
 [build.environment]
   NODE_VERSION = "22"
+  NODE_ENV = "development"
 
 # Headers for security and performance
 [[headers]]
