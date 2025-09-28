@@ -54,7 +54,7 @@ default_origins = [
     "http://127.0.0.1:3000",     # Alternative localhost
     "http://127.0.0.1:5173",     # Alternative localhost
     "https://rushdelivery.netlify.app",  # Netlify deployment
-    "https://parcel-track-ih59.onrender.com",  # Render deployment
+    "https://rushdel.onrender.com",
 ]
 
 # Combine environment origins with defaults, removing empty strings

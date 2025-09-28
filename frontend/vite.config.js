@@ -34,7 +34,7 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg}'],
-        navigateFallback: '/offline.html',
+        navigateFallback: null, // Let Netlify handle SPA routing
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
