@@ -64,3 +64,61 @@ export default function Privacy() {
           This policy explains how we collect, use, and safeguard your data.
         </p>
         <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-500">
+          <Badge variant="outline">Last Updated: {lastUpdated}</Badge>
+          <Badge variant="outline">Version 1.0</Badge>
+        </div>
+      </div>
+
+      {/* Sections */}
+      {sections.map((section) => (
+        <Card key={section.id} className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              {section.icon}
+              {section.title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Content for {section.title} will be added here.</p>
+          </CardContent>
+        </Card>
+      ))}
+
+      {/* Data Categories */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Data Categories</h2>
+        <div className="grid gap-4">
+          {dataCategories.map((category, index) => (
+            <Card key={index}>
+              <CardHeader>
+                <CardTitle>{category.category}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p><strong>Examples:</strong> {category.examples.join(', ')}</p>
+                <p><strong>Purpose:</strong> {category.purpose}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Contact */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Contact Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p>If you have any questions about this Privacy Policy, please contact us:</p>
+          <div className="flex items-center gap-2 mt-2">
+            <Mail className="w-4 h-4" />
+            <span>privacy@rushdelivery.com</span>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <Phone className="w-4 h-4" />
+            <span>1-800-RUSH-DEL</span>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

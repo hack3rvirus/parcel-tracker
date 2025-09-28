@@ -31,7 +31,7 @@ export default function InstallPrompt() {
       }
       setVisible(false);
       setDeferredPrompt(null);
-    } catch (e) {
+    } catch (_e) {
       setVisible(false);
       setDeferredPrompt(null);
     }

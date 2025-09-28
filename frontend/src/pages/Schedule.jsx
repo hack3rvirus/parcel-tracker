@@ -3,7 +3,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
-import { MapPin, Phone, Mail, Clock, Package, Truck, CheckCircle, ArrowRight, Calendar, User, Weight } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Package, Truck, CheckCircle, ArrowRight, Calendar, User, Weight, Copy, X } from 'lucide-react';
+import axios from 'axios';
+import API_BASE_URL from '@/config/api';
 
 export default function Schedule() {
   const [formData, setFormData] = useState({
@@ -45,6 +47,8 @@ export default function Schedule() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [trackingId, setTrackingId] = useState('');
   const { toast } = useToast();
 
   const handleInputChange = (e) => {
@@ -53,6 +57,45 @@ export default function Schedule() {
       ...prev,
       [name]: value
     }));
+  };
+
+  const generateTrackingId = () => {
+    // Generate a truly unique tracking ID
+    const timestamp = Date.now().toString(36);
+    const random1 = Math.random().toString(36).substring(2, 8);
+    const random2 = Math.random().toString(36).substring(2, 8);
+    return `RD${timestamp}${random1}${random2}`.toUpperCase().slice(0, 16);
+  };
+
+  const handleCopyTrackingId = async () => {
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(trackingId);
+      } else {
+        // Fallback for older browsers or non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = trackingId;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      toast({
+        title: "Success",
+        description: "Tracking ID copied to clipboard"
+      });
+    } catch (_e) {
+      toast({
+        title: "Error",
+        description: "Failed to copy tracking ID",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -74,9 +117,39 @@ export default function Schedule() {
 
     setIsSubmitting(true);
 
-    // Simulate API call
-    setTimeout(() => {
-      toast('Pickup scheduled successfully! A customer care representative will contact you within 24 hours to confirm the details.');
+    try {
+      // Generate tracking ID
+      const newTrackingId = generateTrackingId();
+
+      // Prepare parcel data
+      const parcelData = {
+        tracking_id: newTrackingId,
+        status: 'Processing',
+        location: { lat: 40.7128, lng: -74.0060 }, // Default NYC coordinates
+        estimated_delivery: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days from now
+        sender: `${formData.firstName} ${formData.lastName}`,
+        receiver: formData.deliveryName,
+        origin: `${formData.pickupAddress}, ${formData.pickupCity}, ${formData.pickupState} ${formData.pickupZip}`,
+        destination: `${formData.deliveryAddress}, ${formData.deliveryCity}, ${formData.deliveryState} ${formData.deliveryZip}`,
+        updates: [{
+          status: 'Processing',
+          timestamp: new Date().toISOString(),
+          location: `${formData.pickupAddress}, ${formData.pickupCity}, ${formData.pickupState} ${formData.pickupZip}`,
+          description: 'Pickup scheduled and processing'
+        }]
+      };
+
+      // Create parcel via API (no authentication required for users)
+      await axios.post(`${API_BASE_URL}/parcels`, parcelData);
+
+      // Set tracking ID and show modal
+      setTrackingId(newTrackingId);
+      setShowModal(true);
+
+      toast({
+        title: "Success",
+        description: "Pickup scheduled successfully!"
+      });
 
       // Reset form
       setFormData({
@@ -108,8 +181,16 @@ export default function Schedule() {
         specialInstructions: ''
       });
 
+    } catch (error) {
+      console.error('Error creating parcel:', error);
+      toast({
+        title: "Error",
+        description: "Failed to schedule pickup. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 2000);
+    }
   };
 
   const serviceTypes = [
@@ -541,6 +622,43 @@ export default function Schedule() {
           </div>
         </div>
       </div>
+
+      {/* Tracking ID Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <div className="text-center">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Pickup Scheduled!</h2>
+              <p className="text-gray-600 mb-6">
+                Your pickup has been successfully scheduled. Here is your tracking ID:
+              </p>
+              <div className="bg-gray-100 p-4 rounded-lg mb-6">
+                <p className="text-lg font-mono font-bold text-primary">{trackingId}</p>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleCopyTrackingId}
+                  variant="outline"
+                  className="flex-1 flex items-center gap-2"
+                >
+                  <Copy className="w-4 h-4" />
+                  Copy ID
+                </Button>
+                <Button
+                  onClick={() => setShowModal(false)}
+                  className="flex-1"
+                >
+                  Close
+                </Button>
+              </div>
+              <p className="text-sm text-gray-500 mt-4">
+                Use this tracking ID to monitor your package in real-time.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -87,35 +87,7 @@ function FlagSlider() {
 }
 
 export default function Home() {
-  const [trackingId, setTrackingId] = useState('');
-  const [email, setEmail] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
-
-  const handleTrack = () => {
-    if (trackingId.trim()) {
-      navigate(`/tracking?trackingId=${trackingId.trim()}`);
-    }
-  };
-
-  const handleSubscribe = async () => {
-    if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      toast({ title: 'Invalid email', description: 'Please enter a valid email address.' });
-      return;
-    }
-    try {
-      setSubmitting(true);
-      await new Promise((r) => setTimeout(r, 600));
-      toast({ title: 'Success', description: 'Subscribed successfully!' });
-      setEmail('');
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to subscribe. Please try again.' });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   return (
     <>

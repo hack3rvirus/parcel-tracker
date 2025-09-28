@@ -1,22 +1,35 @@
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from dotenv import load_dotenv
+from firebase_config import initialize_firebase, verify_firebase_token
 import os
 from typing import List, Dict, Optional
+
+# WebSocket connections list - defined early for use in endpoints
+active_connections: List[WebSocket] = []
 import uuid
 import datetime
 import json
 import random
+import string
 from pathlib import Path
 import asyncio
 
 load_dotenv()
+
+JWT_SECRET = os.getenv("JWT_SECRET", "your-super-secret-jwt-key-that-should-be-longer-in-production")
+JWT_ALGORITHM = "HS256"
+
+# Initialize Firebase
+try:
+    initialize_firebase()
+    print("Firebase initialized successfully")
+except Exception as e:
+    print(f"Failed to initialize Firebase: {e}")
 
 # Enhanced in-memory storage for demo purposes
 # In production, this would be replaced with Firebase
@@ -40,7 +53,7 @@ default_origins = [
     "http://localhost:8000",      # Backend dev server
     "http://127.0.0.1:3000",     # Alternative localhost
     "http://127.0.0.1:5173",     # Alternative localhost
-    "https://parcel-trackerr.netlify.app",  # Netlify deployment
+    "https://rushdelivery.netlify.app",  # Netlify deployment
     "https://parcel-track-ih59.onrender.com",  # Render deployment
 ]
 
@@ -50,31 +63,15 @@ all_origins = [origin.strip() for origin in all_origins if origin.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=all_origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# Serve static files from React build
-app.mount("/static", StaticFiles(directory="../frontend/dist"), name="static")
-
-# Serve favicon
-@app.get("/favicon.ico")
-async def favicon():
-    return FileResponse("../frontend/dist/favicon.ico")
-
-# Serve index.html for all other routes (SPA support)
-@app.get("/{full_path:path}")
-async def serve_react_app(full_path: str):
-    # Skip API routes
-    if full_path.startswith("api/") or full_path in ["docs", "redoc", "openapi.json"]:
-        raise HTTPException(status_code=404, detail="Not Found")
-    return FileResponse("../frontend/dist/index.html")
+# Static file serving removed for production - frontend deployed separately on Netlify
 
 security = HTTPBearer()
-JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key')
-JWT_ALGORITHM = "HS256"
 
 # Password hashing - moved to global scope
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -86,14 +83,16 @@ class User(BaseModel):
 
 class Parcel(BaseModel):
     id: str = str(uuid.uuid4())
-    tracking_id: str
+    tracking_id: Optional[str] = None
     status: str
     location: Dict[str, float]
-    estimated_delivery: datetime.datetime
+    estimated_delivery: str
     sender: str
     receiver: str
     driver_id: Optional[str] = None
     updates: List[Dict] = []
+    origin: Optional[str] = None
+    destination: Optional[str] = None
 
 class Driver(BaseModel):
     id: str = str(uuid.uuid4())
@@ -108,6 +107,17 @@ class DashboardStats(BaseModel):
     active_drivers: int
     revenue_today: float
     on_time_delivery: float
+
+def generate_tracking_id():
+    """Generate a unique 16-character base36 tracking ID."""
+    while True:
+        # Generate 16-character random string using base36 (0-9, A-Z)
+        chars = string.ascii_uppercase + string.digits
+        tracking_id = ''.join(random.choices(chars, k=16))
+        # Check uniqueness against existing parcels
+        existing_ids = [p.get('tracking_id') for p in data_store['parcels'].values()]
+        if tracking_id not in existing_ids:
+            return tracking_id
 
 # Initialize with sample data
 def initialize_sample_data():
@@ -148,46 +158,41 @@ def initialize_sample_data():
     if driver_ids:  # Only create parcels if drivers exist
         sample_parcels = [
             Parcel(
-                tracking_id="RD001234",
                 status="In Transit",
                 location={"lat": 40.7589, "lng": -73.9851},
-                estimated_delivery=datetime.datetime.now() + datetime.timedelta(days=2),
+                estimated_delivery=(datetime.datetime.now() + datetime.timedelta(days=2)).isoformat(),
                 sender="Tech Corp Inc",
                 receiver="Global Solutions LLC",
                 driver_id=driver_ids[0]
             ),
             Parcel(
-                tracking_id="RD001235",
                 status="Out for Delivery",
                 location={"lat": 40.7505, "lng": -73.9934},
-                estimated_delivery=datetime.datetime.now() + datetime.timedelta(hours=4),
+                estimated_delivery=(datetime.datetime.now() + datetime.timedelta(hours=4)).isoformat(),
                 sender="Fashion Retail",
                 receiver="Sarah Martinez",
                 driver_id=driver_ids[1] if len(driver_ids) > 1 else driver_ids[0]
             ),
             Parcel(
-                tracking_id="RD001236",
                 status="Processing",
                 location={"lat": 40.7128, "lng": -74.0060},
-                estimated_delivery=datetime.datetime.now() + datetime.timedelta(days=1),
+                estimated_delivery=(datetime.datetime.now() + datetime.timedelta(days=1)).isoformat(),
                 sender="Online Store",
                 receiver="Michael Chen",
                 driver_id=driver_ids[2] if len(driver_ids) > 2 else driver_ids[0]
             ),
             Parcel(
-                tracking_id="RD001237",
                 status="Delivered",
                 location={"lat": 40.7282, "lng": -73.7949},
-                estimated_delivery=datetime.datetime.now() - datetime.timedelta(hours=2),
+                estimated_delivery=(datetime.datetime.now() - datetime.timedelta(hours=2)).isoformat(),
                 sender="Book World",
                 receiver="Emily Davis",
                 driver_id=driver_ids[3] if len(driver_ids) > 3 else driver_ids[0]
             ),
             Parcel(
-                tracking_id="RD001238",
                 status="In Transit",
                 location={"lat": 40.7831, "lng": -73.9712},
-                estimated_delivery=datetime.datetime.now() + datetime.timedelta(days=3),
+                estimated_delivery=(datetime.datetime.now() + datetime.timedelta(days=3)).isoformat(),
                 sender="Electronics Plus",
                 receiver="David Wilson",
                 driver_id=driver_ids[4] if len(driver_ids) > 4 else driver_ids[0]
@@ -195,6 +200,8 @@ def initialize_sample_data():
         ]
 
         for parcel in sample_parcels:
+            # Generate tracking_id for sample parcels
+            parcel.tracking_id = generate_tracking_id()
             data_store['parcels'][parcel.id] = parcel.dict()
 
     # Initialize sample activities and alerts
@@ -283,12 +290,27 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 
 def get_admin_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
+        # Check if it's an admin key
+        if credentials.credentials == "985d638bafbb39fb":
+            return {"role": "admin", "key": credentials.credentials}
+        # Otherwise, try JWT token
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         if payload.get('role') != 'admin':
             raise HTTPException(403, "Admin access required")
         return payload  # Contains 'uid', 'email', 'role'
     except JWTError:
         raise HTTPException(401, "Invalid token")
+
+from pydantic import BaseModel
+
+class KeyRequest(BaseModel):
+    key: str
+
+@app.post("/admin/verify_key")
+async def verify_admin_key(request: KeyRequest):
+    if request.key == "985d638bafbb39fb":
+        return {"valid": True, "role": "admin"}
+    return {"valid": False}
 
 # Dashboard Endpoints
 @app.get("/dashboard/stats")
@@ -345,40 +367,53 @@ async def get_active_shipments(user: Dict = Depends(get_current_user)):
 
     return active_shipments[:10]  # Return first 10 active shipments
 
+# Test endpoint for CORS
+@app.get("/test")
+async def test_cors():
+    return {"message": "CORS test successful"}
+
 # Parcel Endpoints
 @app.post("/parcels")
-async def create_parcel(parcel: Parcel, user: Dict = Depends(get_current_user)):
-    if user['role'] != 'admin':
-        raise HTTPException(403, "Admin only")
+async def create_parcel(parcel: Parcel):
+    try:
+        print(f"Received parcel data: {parcel.dict()}")
+        # Allow anyone to create parcels (no authentication required)
 
-    # Store parcel in memory
-    data_store['parcels'][parcel.id] = parcel.dict()
+        # Generate tracking_id if not provided
+        if not parcel.tracking_id:
+            parcel.tracking_id = generate_tracking_id()
 
-    # Add to activities
-    data_store['activities'].insert(0, {
-        "title": f"New shipment {parcel.tracking_id} created",
-        "time": "Just now",
-        "status": "Success",
-        "type": "success"
-    })
+        # Store parcel in memory
+        data_store['parcels'][parcel.id] = parcel.dict()
 
-    # Broadcast update to all connected WebSocket clients
-    for conn in active_connections:
-        await conn.send_json({
-            "type": "new_parcel",
-            "data": parcel.dict()
+        # Add to activities
+        data_store['activities'].insert(0, {
+            "title": f"New shipment {parcel.tracking_id} created",
+            "time": "Just now",
+            "status": "Success",
+            "type": "success"
         })
 
-    return parcel
+        # Broadcast update to all connected WebSocket clients
+        for conn in active_connections:
+            await conn.send_json({
+                "type": "new_parcel",
+                "data": parcel.dict()
+            })
+
+        print(f"Parcel created successfully: {parcel.tracking_id}")
+        return parcel
+    except Exception as e:
+        print(f"Error creating parcel: {str(e)}")
+        raise HTTPException(500, f"Internal server error: {str(e)}")
 
 @app.get("/parcels")
-async def get_all_parcels(user: Dict = Depends(get_current_user)):
-    if user['role'] != 'admin':
-        raise HTTPException(403, "Admin only")
+async def get_all_parcels(user: Dict = Depends(get_admin_user)):
     return list(data_store['parcels'].values())
 
 @app.get("/parcels/{tracking_id}")
-async def get_parcel(tracking_id: str, user: Dict = Depends(get_current_user)):
+async def get_parcel(tracking_id: str):
+    # Public endpoint - no authentication required for tracking
     for parcel_id, parcel_data in data_store['parcels'].items():
         if parcel_data['tracking_id'] == tracking_id:
             # Add driver information if available
@@ -388,9 +423,7 @@ async def get_parcel(tracking_id: str, user: Dict = Depends(get_current_user)):
     raise HTTPException(404, "Parcel not found")
 
 @app.put("/parcels/{parcel_id}")
-async def update_parcel(parcel_id: str, update: Dict, user: Dict = Depends(get_current_user)):
-    if user['role'] != 'admin':
-        raise HTTPException(403, "Admin only")
+async def update_parcel(parcel_id: str, update: Dict, user: Dict = Depends(get_admin_user)):
     if parcel_id not in data_store['parcels']:
         raise HTTPException(404, "Parcel not found")
 
@@ -469,7 +502,8 @@ async def push_test(req: PushRequest, user: Dict = Depends(get_current_user)):
         "url": req.url or "/notifications"
     }
 
-# WebSocket for real-time updates
+# WebSocket connections list - defined early for use in endpoints
+from typing import List
 active_connections: List[WebSocket] = []
 
 @app.websocket("/ws/dashboard")

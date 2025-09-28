@@ -7,21 +7,24 @@ export function useKeyboardNavigation() {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
       switch (e.key) {
-        case 'Tab':
+        case 'Tab': {
           // Ensure focus is visible
           document.body.classList.add('keyboard-navigation');
           break;
-        case 'Escape':
+        }
+        case 'Escape': {
           // Close modals/dropdowns
           const modals = document.querySelectorAll('[role="dialog"]');
           modals.forEach(modal => modal.setAttribute('aria-hidden', 'true'));
           break;
-        case '/':
+        }
+        case '/': {
           // Focus search if available
           e.preventDefault();
           const searchInput = document.querySelector('input[type="search"], input[placeholder*="search" i]');
           if (searchInput) searchInput.focus();
           break;
+        }
       }
     };
 

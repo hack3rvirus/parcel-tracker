@@ -16,16 +16,9 @@ export default function TrackingEnhanced() {
   const [parcel, setParcel] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [offlineUsed, setOfflineUsed] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    // Check if user is logged in by checking for token
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
-  }, []);
 
   const handleSearch = async () => {
     if (!trackingId.trim()) {
@@ -43,20 +36,7 @@ export default function TrackingEnhanced() {
     setOfflineUsed(false);
 
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to track parcels",
-          variant: "destructive"
-        });
-        navigate('/login');
-        return;
-      }
-
-      const response = await axios.get(`${API_BASE_URL}/parcels/${trackingId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await axios.get(`${API_BASE_URL}/parcels/${trackingId}`);
       setParcel(response.data);
       toast({
         title: "Success",
@@ -84,14 +64,6 @@ export default function TrackingEnhanced() {
           description: "Tracking ID not found",
           variant: "destructive"
         });
-      } else if (err.response?.status === 401) {
-        setError('Authentication required. Please log in.');
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to track packages",
-          variant: "destructive"
-        });
-        navigate('/login');
       } else {
         setError('Error fetching tracking information');
         toast({
@@ -284,7 +256,7 @@ export default function TrackingEnhanced() {
                         <label className="text-sm font-medium text-gray-600">Status</label>
                         <div className="flex items-center gap-2">
                           <div className={`w-3 h-3 rounded-full ${parcel.status === 'delivered' ? 'bg-green-500' : parcel.status === 'in_transit' ? 'bg-blue-500' : 'bg-yellow-500'}`}></div>
-                          <span className="text-lg font-semibold capitalize">{parcel.status.replace('_', ' ')}</span>
+                          <span className="text-lg font-semibold capitalize">{parcel.status ? parcel.status.replace('_', ' ') : 'Unknown'}</span>
                         </div>
                       </div>
                       <div>

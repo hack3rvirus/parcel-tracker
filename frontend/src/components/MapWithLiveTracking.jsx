@@ -184,7 +184,7 @@ function MapWithLiveTracking({
         </div>
       </div>
     );
-  } catch (error) {
+  } catch {
     // If there's an error rendering the map, show a fallback UI
     return (
       <div className={`${className} flex items-center justify-center bg-gray-100 rounded-lg border`}>

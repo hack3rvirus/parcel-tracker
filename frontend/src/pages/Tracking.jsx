@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { MapPin, Phone, Mail, Clock, Package, Truck, CheckCircle, ArrowRight, Calendar, User, Weight, Search, Copy, Share2, Download } from 'lucide-react';
 import axios from 'axios';
 import API_BASE_URL from '@/config/api';
+import LiveMap from '@/components/LiveMap';
 
 export default function Tracking() {
   const [searchParams] = useSearchParams();
@@ -15,22 +16,16 @@ export default function Tracking() {
   const [parcel, setParcel] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is logged in by checking for token
-    const token = localStorage.getItem('token');
-    setIsLoggedIn(!!token);
-  }, []);
+    if (trackingId.trim()) {
+      handleSearch();
+    }
+  }, [trackingId]);
 
   const handleSearch = async () => {
     if (!trackingId.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a tracking ID",
-        variant: "destructive"
-      });
       return;
     }
 
@@ -39,10 +34,7 @@ export default function Tracking() {
     setParcel(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_BASE_URL}/parcels/${trackingId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await axios.get(`${API_BASE_URL}/parcels/${trackingId}`);
       setParcel(response.data);
       toast({
         title: "Success",
@@ -57,14 +49,6 @@ export default function Tracking() {
           description: "Tracking ID not found",
           variant: "destructive"
         });
-      } else if (err.response?.status === 401) {
-        setError('Authentication required. Please log in.');
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to track packages",
-          variant: "destructive"
-        });
-        navigate('/login');
       } else {
         setError('Error fetching tracking information');
         toast({
@@ -265,6 +249,9 @@ export default function Tracking() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Live Map */}
+              <LiveMap parcel={parcel} />
 
               {/* Tracking History */}
               {parcel.history && parcel.history.length > 0 && (

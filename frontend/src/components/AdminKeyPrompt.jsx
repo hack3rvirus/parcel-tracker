@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Key } from 'lucide-react';
+import API_BASE_URL from '@/config/api';
+import axios from 'axios';
 
 export default function AdminKeyPrompt({ onSuccess }) {
   const [adminKey, setAdminKey] = useState('');
@@ -12,20 +14,12 @@ export default function AdminKeyPrompt({ onSuccess }) {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSuccess = () => {
-    if (onSuccess) {
-      onSuccess();
-    } else {
-      navigate('/admin');
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const handleKeySubmit = async (e) => {
     e.preventDefault();
 
     if (!adminKey.trim()) {
       toast({
-        title: 'Admin Key Required',
+        title: 'Missing Key',
         description: 'Please enter the admin access key',
         variant: 'destructive'
       });
@@ -35,9 +29,14 @@ export default function AdminKeyPrompt({ onSuccess }) {
     setIsLoading(true);
 
     try {
-      // Check if the key is correct
-      if (adminKey.trim() === '985d638bafbb39fb') {
+      const response = await axios.post(`${API_BASE_URL}/admin/verify_key`, {
+        key: adminKey.trim()
+      });
+
+      if (response.data.valid) {
+        // Store admin key for API authentication
         localStorage.setItem('adminKey', adminKey.trim());
+
         toast({
           title: 'Admin Access Granted',
           description: 'Welcome to the admin dashboard'
@@ -50,15 +49,15 @@ export default function AdminKeyPrompt({ onSuccess }) {
         }
       } else {
         toast({
-          title: 'Invalid Admin Key',
+          title: 'Invalid Key',
           description: 'The admin key you entered is incorrect',
           variant: 'destructive'
         });
       }
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to verify admin key',
+        title: 'Verification Failed',
+        description: error.response?.data?.detail || 'Failed to verify admin key',
         variant: 'destructive'
       });
     } finally {
@@ -75,27 +74,23 @@ export default function AdminKeyPrompt({ onSuccess }) {
           </div>
           <CardTitle className="text-2xl font-bold">Admin Access</CardTitle>
           <p className="text-gray-600 mt-2">
-            Enter the admin access key to continue to the dashboard
+            Enter your admin access key to access the dashboard
           </p>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="space-y-4">
+          <form onSubmit={handleKeySubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="adminKey" className="text-sm font-medium">
                 Admin Access Key
               </label>
-              <div className="relative">
-                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <Input
-                  id="adminKey"
-                  type="password"
-                  placeholder="Enter admin key"
-                  value={adminKey}
-                  onChange={(e) => setAdminKey(e.target.value)}
-                  className="pl-10"
-                  disabled={isLoading}
-                />
-              </div>
+              <Input
+                id="adminKey"
+                type="password"
+                placeholder="Enter admin access key"
+                value={adminKey}
+                onChange={(e) => setAdminKey(e.target.value)}
+                disabled={isLoading}
+              />
             </div>
 
             <Button
@@ -109,8 +104,9 @@ export default function AdminKeyPrompt({ onSuccess }) {
 
           <div className="mt-6 p-4 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-800">
-              <strong>Need the admin key?</strong><br />
-              Check the credentials documentation for the current admin access key.
+              <strong>Admin Access Only</strong><br />
+              This area is restricted to authorized administrators only.
+              Contact your system administrator if you need access.
             </p>
           </div>
         </CardContent>

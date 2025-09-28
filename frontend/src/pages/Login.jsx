@@ -36,7 +36,7 @@ function Login() {
     try {
       if (isRegister) {
         // User registration
-        const res = await axios.post(`${API_BASE_URL}/register`, {
+        await axios.post(`${API_BASE_URL}/register`, {
           email,
           password,
           role: 'client'

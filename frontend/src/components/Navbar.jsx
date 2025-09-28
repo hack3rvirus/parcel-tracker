@@ -6,8 +6,6 @@ import { Search, Package, User, Menu, X, Bell, LogOut, Sun, Moon, Laptop, Settin
 import { useTheme } from 'next-themes';
 import { useMediaQuery } from 'react-responsive';
 import { useToast } from '@/components/ui/use-toast';
-import axios from 'axios';
-import API_BASE_URL from '@/config/api';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -15,7 +13,6 @@ export default function Navbar() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const isTablet = useMediaQuery({ maxWidth: 1024 });
-  const isMobile = useMediaQuery({ maxWidth: 767 });
   const { theme, setTheme, systemTheme } = useTheme();
   const resolved = theme === 'system' ? systemTheme : theme;
 
