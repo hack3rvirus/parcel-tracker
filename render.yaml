@@ -42,7 +42,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: https://rush-delivery-frontend.onrender.com,https://your-custom-domain.com
+        value: https://rush-delivery-frontend.onrender.com,https://rushdelivery.netlify.app
       - key: ENVIRONMENT
         value: production
       - key: PYTHONPATH
