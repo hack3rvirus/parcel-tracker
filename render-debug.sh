@@ -63,9 +63,9 @@ echo "5. [ ] Check CORS configuration in backend/main.py"
 
 echo ""
 echo "🌐 Common Render URLs:"
-echo "Frontend: https://your-service-name.onrender.com"
-echo "Backend: https://your-backend-service.onrender.com"
-echo "Health check: curl https://your-backend-service.onrender.com/docs"
+echo "Frontend: https://rushdelivery.netlify.app/"
+echo "Backend: https://rushdel.onrender.com"
+echo "Health check: curl https://rushdel.onrender.com/docs"
 
 echo ""
 echo "🔧 If you get 404 errors:"
